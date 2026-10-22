@@ -1,28 +1,44 @@
 import json
 from collections import defaultdict
 
-from odoo import _, models
+from odoo import _, api, fields, models
 from odoo.fields import Domain
 
 EXCLUDED_BUDGET_STATES = ("draft", "cancel")
 
 
 class ProjectProject(models.Model):
-    """Tablero del proyecto con los presupuestos de base_account_budget, igual que
-    project_account_budget de Odoo 17 (agrupado por posición presupuestaria)."""
+    """Presupuestos por posición presupuestaria (base_account_budget) en el tablero del
+    proyecto, con el comportamiento de project_account_budget de Odoo 17.
+
+    Se muestran en una sección propia: la sección nativa "Presupuestos" de Odoo 19
+    (budget.analytic) se conserva sin cambios.
+    """
 
     _inherit = "project.project"
 
-    def _custom_budget_lines_domain(self):
+    position_budget_amount = fields.Monetary(
+        string="Total previsto (posiciones presupuestarias)",
+        compute="_compute_position_budget",
+        export_string_translation=False,
+    )
+    position_budget_progress = fields.Float(
+        string="Avance del presupuesto (posiciones presupuestarias)",
+        compute="_compute_position_budget",
+        export_string_translation=False,
+    )
+
+    def _position_budget_lines_domain(self):
         return [
             ("analytic_account_id", "in", self.account_id.ids),
             ("budget_id", "!=", False),
             ("budget_id.state", "not in", EXCLUDED_BUDGET_STATES),
         ]
 
-    def _compute_budget(self):
-        """Total previsto y avance para el indicador $ del kanban (v17)."""
-        lines = self.env["budget.lines"].sudo().search(self._custom_budget_lines_domain())
+    @api.depends("account_id")
+    def _compute_position_budget(self):
+        """Total previsto y avance para el indicador del kanban (v17)."""
+        lines = self.env["budget.lines"].sudo().search(self._position_budget_lines_domain())
         totals = defaultdict(lambda: {"planned": 0.0, "practical": 0.0})
         for line in lines:
             totals[line.analytic_account_id.id]["planned"] += line.planned_amount
@@ -30,10 +46,10 @@ class ProjectProject(models.Model):
         for project in self:
             planned = totals[project.account_id.id]["planned"] if project.account_id else 0.0
             practical = totals[project.account_id.id]["practical"] if project.account_id else 0.0
-            project.total_budget_amount = planned
-            project.total_budget_progress = planned and (practical - planned) / abs(planned)
+            project.position_budget_amount = planned
+            project.position_budget_progress = planned and (practical - planned) / abs(planned)
 
-    def action_view_budget_lines(self, domain=None):
+    def action_view_position_budget_lines(self, domain=None):
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
@@ -51,12 +67,28 @@ class ProjectProject(models.Model):
             "views": [(self.env.ref("custom_budget_project.view_budget_lines_project_list").id, "list")],
         }
 
-    def _get_budget_items(self, with_action=True):
+    # ----------------------------
+    #  Tablero del proyecto
+    # ----------------------------
+
+    def get_panel_data(self):
+        panel_data = super().get_panel_data()
+        panel_data["position_budget_items"] = self._get_position_budget_items()
+        panel_data["show_position_budget_items"] = bool(self.account_id)
+        return panel_data
+
+    def get_position_budget_items(self):
+        self.ensure_one()
+        if self.account_id and self.env.user.has_group("project.group_project_user"):
+            return self._get_position_budget_items(True)
+        return {}
+
+    def _get_position_budget_items(self, with_action=True):
         self.ensure_one()
         if not self.account_id:
             return
         lines = self.env["budget.lines"].sudo().search(
-            self._custom_budget_lines_domain(),
+            self._position_budget_lines_domain(),
             order="general_budget_id, budget_id, id",
         )
         allowed_company_ids = self.env.context.get("allowed_company_ids", [])
@@ -76,7 +108,6 @@ class ProjectProject(models.Model):
                 "name": position.display_name or False,
                 "allocated": 0.0,
                 "spent": 0.0,
-                "budget_type": False,
                 "_budgets": {},
                 "_ids": [],
             })
@@ -89,7 +120,6 @@ class ProjectProject(models.Model):
                 "name": line.budget_id.display_name,
                 "allocated": 0.0,
                 "spent": 0.0,
-                "budget_type": False,
             })
             budget["allocated"] += allocated
             budget["spent"] += spent
@@ -109,7 +139,7 @@ class ProjectProject(models.Model):
                 # v17: el detalle por presupuesto solo se muestra si hay más de uno.
                 item["budgets"] = budgets if len(budgets) > 1 else []
                 item["action"] = {
-                    "name": "action_view_budget_lines",
+                    "name": "action_view_position_budget_lines",
                     "type": "object",
                     "args": json.dumps([[("id", "in", ids)]]),
                 }
@@ -126,7 +156,6 @@ class ProjectProject(models.Model):
                 "progress": total_allocated and (total_spent - total_allocated) / abs(total_allocated),
             },
             "can_add_budget": can_add_budget,
-            "budget_model": "budget.budget",
         }
         if can_add_budget:
             budget_items["form_view_id"] = self.env.ref("custom_budget_project.view_budget_form_project_dialog").id

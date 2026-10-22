@@ -1,5 +1,5 @@
 {
-    "name": "Custom Budget Project - Presupuestos v17 en Proyectos",
+    "name": "Personalización de presupuesto por proyectos",
     "summary": "Comportamiento del presupuesto analítico de Odoo 17 (posiciones presupuestarias) "
     "sobre base_account_budget, reflejado en el tablero de proyectos",
     "description": """
@@ -11,18 +11,20 @@ presupuesto analítico de Odoo 17 (account_budget + project_account_budget):
   partidas analíticas cuando la posición presupuestaria no tiene cuentas.
 * Importe teórico, % de logro, fecha de pago, nombre de la línea, botón
   "Apuntes..." y validaciones de v17.
-* Tablero del proyecto (panel derecho): sección Presupuestos agrupada por
-  posición presupuestaria, con previsto, real y diferencia; botón para agregar
-  presupuesto; indicador $ en el kanban y resumen en la actualización del proyecto.
+* Tablero del proyecto (panel derecho): sección adicional "Presupuestos por
+  posición presupuestaria" con previsto, real y diferencia y botón para agregar
+  presupuesto; indicador en el kanban y resumen en la actualización del proyecto.
+  La sección nativa "Presupuestos" (budget.analytic) de Odoo 19 se conserva.
 * Restaura la relación posición presupuestaria → cuentas contables de v16.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "category": "Accounting/Accounting",
     "author": "AKRON",
     "license": "LGPL-3",
     "depends": ["base_account_budget", "project_account_budget"],
     "data": [
         "views/budget_views.xml",
+        "views/project_views.xml",
     ],
     "assets": {
         "web.assets_backend": [

@@ -1,20 +1,95 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
 
-    <!-- Encabezado como en v17: el detalle se agrupa por posición presupuestaria -->
+    <!-- Sección adicional, después de la sección nativa "Presupuestos" (que no se modifica) -->
     <t t-name="custom_budget_project.ProjectRightSidePanel" t-inherit="project.ProjectRightSidePanel" t-inherit-mode="extension">
-        <xpath expr="//ProjectRightSidePanelSection[@name=&quot;'budgets'&quot;]//thead/tr/th[1]" position="replace">
-            <th>
-                <t t-if="state.data.budget_items.budget_model === 'budget.budget'">Posiciones presupuestarias</t>
-                <t t-else="">Budget</t>
-            </th>
+        <xpath expr="//ProjectRightSidePanelSection[@name=&quot;'budgets'&quot;]" position="after">
+            <t t-set="showPositionBudget" t-value="!!state.data.position_budget_items and !!state.data.position_budget_items.data"/>
+            <ProjectRightSidePanelSection
+                name="'position_budgets'"
+                show="showPositionBudget"
+                showData="showPositionBudget"
+                headerClassName="'border-top pt-0 pt-md-3'"
+            >
+                <t t-set-slot="title">
+                    Presupuestos por posición presupuestaria
+                </t>
+                <t t-set-slot="header">
+                    <div class="o_rightpanel_button btn btn-secondary" t-if="state.data.position_budget_items.can_add_budget">
+                        <a t-on-click="addPositionBudget">Agregar presupuesto</a>
+                    </div>
+                </t>
+                <div t-if="!state.data.position_budget_items.data.length" class="px-3 pb-3">
+                    <span class="text-muted fst-italic">
+                        Compare lo previsto contra lo real por posición presupuestaria.
+                    </span>
+                </div>
+                <table t-else="" class="o_rightpanel_data_table table table-sm table-borderless table-hover mb-3 border-top">
+                    <thead class="bg-100">
+                        <tr>
+                            <th>Posiciones presupuestarias</th>
+                            <th class="text-end">Previsto</th>
+                            <th class="text-end">Real</th>
+                            <th class="text-end">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.data.position_budget_items.data" t-as="position_item" t-key="position_item.id">
+                            <tr>
+                                <td>
+                                    <a t-if="position_item.action" href="#"
+                                        t-on-click="() => this.onProjectActionClick(position_item.action)"
+                                    >
+                                        <t t-call="custom_budget_project.PositionName"/>
+                                    </a>
+                                    <t t-else="">
+                                        <t t-call="custom_budget_project.PositionName"/>
+                                    </t>
+                                </td>
+                                <td class="text-end" t-att-class="position_item.allocated === 0 ? 'text-500' : ''"><t t-out="formatMonetary(position_item.allocated)"/></td>
+                                <td class="text-end" t-att-class="position_item.spent === 0 ? 'text-500' : ''"><t t-out="formatMonetary(position_item.spent)"/></td>
+                                <td class="text-end" t-attf-class="text-bold text-{{ position_item.progress &gt;= 0.25 ? 'success' : position_item.progress &gt;= 0 ? 'warning' : 'danger' }}">
+                                    <t t-out="formatMonetary(position_item.spent - position_item.allocated)"/>
+                                    <t t-if="position_item.allocated"> (<t t-out="Math.abs(position_item.spent / position_item.allocated * 100).toFixed()"/>%)</t>
+                                </td>
+                            </tr>
+                            <t t-foreach="position_item.budgets" t-as="position_budget" t-key="position_budget.id">
+                                <tr>
+                                    <td><span class="ms-3"><small t-out="position_budget.name"/></span></td>
+                                    <td class="text-end" t-att-class="position_budget.allocated === 0 ? 'text-500' : ''"><small t-out="formatMonetary(position_budget.allocated)"/></td>
+                                    <td class="text-end" t-att-class="position_budget.spent === 0 ? 'text-500' : ''"><small t-out="formatMonetary(position_budget.spent)"/></td>
+                                    <td class="text-end" t-attf-class="text-bold text-{{ position_budget.progress &gt;= 0.25 ? 'success' : position_budget.progress &gt;= 0 ? 'warning' : 'danger' }}">
+                                        <small t-out="formatMonetary(position_budget.spent - position_budget.allocated)"/>
+                                        <t t-if="position_budget.allocated"> (<small t-out="Math.abs(position_budget.spent / position_budget.allocated * 100).toFixed()"/>%)</t>
+                                    </td>
+                                </tr>
+                            </t>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bolder">
+                            <t t-set="position_total" t-value="state.data.position_budget_items.total"/>
+                            <td>Total</td>
+                            <td class="text-end" t-att-class="position_total.allocated === 0 ? 'text-500' : ''" t-out="formatMonetary(position_total.allocated)"/>
+                            <td class="text-end" t-att-class="position_total.spent === 0 ? 'text-500' : ''" t-out="formatMonetary(position_total.spent)"/>
+                            <td class="text-end" t-attf-class="text-bold text-{{ position_total.progress &gt;= 0.25 ? 'success' : position_total.progress &gt;= 0 ? 'warning' : 'danger' }}">
+                                <t t-out="formatMonetary(position_total.spent - position_total.allocated)"/>
+                                <t t-if="position_total.allocated"> (<t t-out="Math.abs(position_total.spent / position_total.allocated * 100).toFixed()"/>%)</t>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </ProjectRightSidePanelSection>
         </xpath>
     </t>
 
-    <t t-name="custom_budget_project.BudgetName" t-inherit="project_account_budget.BudgetName" t-inherit-mode="extension">
-        <xpath expr="//i" position="replace">
+    <t t-name="custom_budget_project.PositionName">
+        <t t-if="position_item.name">
+            <t t-out="position_item.name"/>
+        </t>
+        <t t-else="">
             <i>Sin posición presupuestaria</i>
-        </xpath>
+        </t>
     </t>
 
 </templates>

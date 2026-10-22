@@ -9,6 +9,6 @@ class Budget(models.Model):
         budgets = super().create(vals_list)
         # v17: un presupuesto creado desde el botón "Agregar presupuesto" del
         # tablero del proyecto queda confirmado para verse de inmediato.
-        if len(budgets) == 1 and self.env.context.get("project_update"):
+        if len(budgets) == 1 and self.env.context.get("position_budget_from_project"):
             budgets.action_budget_confirm()
         return budgets

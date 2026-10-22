@@ -161,7 +161,8 @@ class TestBudgetProject(TransactionCase):
         ])
         self._create_budget("Borrador", confirm=False)
 
-        items = self.project.with_context(allowed_company_ids=self.company.ids)._get_budget_items()
+        project = self.project.with_context(allowed_company_ids=self.company.ids)
+        items = project._get_position_budget_items()
         by_name = {item["name"]: item for item in items["data"]}
         self.assertEqual(set(by_name), {"Atención a Cliente", "Papelería"})
 
@@ -169,7 +170,7 @@ class TestBudgetProject(TransactionCase):
         self.assertEqual(attention["allocated"], -1400.0)
         self.assertEqual(attention["spent"], -1000.0)  # -500 de cada presupuesto confirmado
         self.assertEqual({b["name"] for b in attention["budgets"]}, {"Presupuesto A", "Presupuesto B"})
-        self.assertEqual(attention["action"]["name"], "action_view_budget_lines")
+        self.assertEqual(attention["action"]["name"], "action_view_position_budget_lines")
         line_ids = json.loads(attention["action"]["args"])[0][0][2]
         self.assertEqual(
             set(line_ids),
@@ -185,39 +186,79 @@ class TestBudgetProject(TransactionCase):
         self.assertEqual(items["total"]["allocated"], -1500.0)
         self.assertEqual(items["total"]["spent"], -1050.0)
         self.assertAlmostEqual(items["total"]["progress"], (-1050.0 + 1500.0) / 1500.0)
-        self.assertEqual(items["budget_model"], "budget.budget")
         self.assertTrue(items["can_add_budget"])
         self.assertEqual(
             items["form_view_id"], self.env.ref("custom_budget_project.view_budget_form_project_dialog").id
         )
+        self.assertEqual(project.get_position_budget_items()["total"], items["total"])
 
-        panel = self.project.with_context(allowed_company_ids=self.company.ids).get_panel_data()
-        self.assertEqual(panel["budget_items"]["total"], items["total"])
-        self.assertTrue(panel["show_budget_items"])
+        panel = project.get_panel_data()
+        self.assertEqual(panel["position_budget_items"]["total"], items["total"])
+        self.assertTrue(panel["show_position_budget_items"])
 
-        action = self.project.action_view_budget_lines(json.loads(attention["action"]["args"])[0])
+        action = project.action_view_position_budget_lines(json.loads(attention["action"]["args"])[0])
         self.assertEqual(action["res_model"], "budget.lines")
         self.assertEqual(set(self.env["budget.lines"].search(action["domain"]).ids), set(line_ids))
 
+    def test_native_budget_section_is_kept(self):
+        """El presupuesto nativo (budget.analytic) se sigue mostrando en su sección."""
+        self._create_budget()
+        native = self.env["budget.analytic"].create({
+            "name": "Presupuesto nativo",
+            "date_from": "2026-10-01",
+            "date_to": "2026-12-31",
+            "budget_type": "expense",
+            "budget_line_ids": [Command.create({
+                self.plan._column_name(): self.analytic.id,
+                "budget_amount": 2500.0,
+            })],
+        })
+        native.action_budget_confirm()
+
+        project = self.project.with_context(allowed_company_ids=self.company.ids)
+        panel = project.get_panel_data()
+        self.assertEqual([item["name"] for item in panel["budget_items"]["data"]], ["Presupuesto nativo"])
+        self.assertEqual(panel["budget_items"]["total"]["allocated"], 2500.0)
+        self.assertTrue(panel["show_budget_items"])
+        self.assertEqual(panel["position_budget_items"]["total"]["allocated"], -1000.0)
+
+        # El indicador nativo del kanban (total_budget_amount) lo sigue calculando Odoo;
+        # el de posiciones presupuestarias es un campo aparte.
+        self.project.invalidate_recordset()
+        self.assertEqual(self.project.position_budget_amount, -1000.0)
+
+        action = project.action_view_budget_lines()
+        self.assertEqual(action["res_model"], "budget.analytic")
+
+        values = self.env["project.update"]._get_template_values(self.project)
+        self.assertEqual(values["budget"]["total"]["allocated"], 2500.0)
+        self.assertEqual(values["position_budget"]["total"]["allocated"], -1000.0)
+
     def test_dashboard_draft_budget_is_hidden_and_kanban_totals(self):
         self._create_budget("Borrador", confirm=False)
-        items = self.project.with_context(allowed_company_ids=self.company.ids)._get_budget_items()
+        items = self.project.with_context(allowed_company_ids=self.company.ids)._get_position_budget_items()
         self.assertEqual(items["data"], [])
-        self.assertEqual(self.project.total_budget_amount, 0.0)
+        self.assertEqual(self.project.position_budget_amount, 0.0)
 
         self._create_budget()
-        self.project.invalidate_recordset(["total_budget_amount", "total_budget_progress"])
-        self.assertEqual(self.project.total_budget_amount, -1000.0)
-        self.assertAlmostEqual(self.project.total_budget_progress, (-500.0 + 1000.0) / 1000.0)
+        self.project.invalidate_recordset(["position_budget_amount", "position_budget_progress"])
+        self.assertEqual(self.project.position_budget_amount, -1000.0)
+        self.assertAlmostEqual(self.project.position_budget_progress, (-500.0 + 1000.0) / 1000.0)
 
     def test_project_update_summary(self):
         self._create_budget()
         values = self.env["project.update"]._get_template_values(self.project)
-        self.assertEqual(values["budget"]["total"]["allocated"], -1000.0)
-        self.assertEqual(values["budget"]["data"][0]["name"], "Atención a Cliente")
+        self.assertEqual(values["position_budget"]["total"]["allocated"], -1000.0)
+        self.assertEqual(values["position_budget"]["data"][0]["name"], "Atención a Cliente")
+        self.assertEqual(values["position_budget"]["percentage"], 50)
+        description = str(self.env["project.update"]._build_description(self.project))
+        self.assertIn("Presupuesto por posición presupuestaria", description)
+        self.assertIn("Atención a Cliente", description)
 
     def test_add_budget_from_dashboard(self):
-        Budget = self.env["budget.budget"].with_context(project_update=True, default_project_id=self.project.id)
+        Budget = self.env["budget.budget"].with_context(
+            position_budget_from_project=True, default_project_id=self.project.id
+        )
         defaults = Budget.env["budget.lines"].default_get(["analytic_account_id"])
         self.assertEqual(defaults["analytic_account_id"], self.analytic.id)
         budget = Budget.create({
@@ -228,6 +269,11 @@ class TestBudgetProject(TransactionCase):
             })],
         })
         self.assertEqual(budget.state, "confirm")
+        # Sin el contexto del tablero, el presupuesto queda en borrador.
+        draft = self.env["budget.budget"].create({
+            "name": "Manual", "date_from": "2026-10-01", "date_to": "2026-12-31",
+        })
+        self.assertEqual(draft.state, "draft")
 
     # ----------------------------------------------------------- datos v16
 

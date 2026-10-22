@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Indicador en el kanban de proyectos (adicional al $ del presupuesto nativo) -->
+    <record id="project_project_kanban_view_position_budget" model="ir.ui.view">
+        <field name="name">project.project.kanban.position.budget</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="project.view_project_kanban"/>
+        <field name="arch" type="xml">
+            <field name="activity_ids" position="before">
+                <field name="position_budget_amount" invisible="1"/>
+                <field name="position_budget_progress" invisible="1"/>
+                <t t-if="record.account_id.raw_value and record.position_budget_amount.raw_value">
+                    <t t-set="position_progress" t-value="record.position_budget_progress.raw_value"/>
+                    <t t-if="position_progress == -1.0" t-set="position_title">Presupuesto por posición asignado</t>
+                    <t t-elif="position_progress &gt;= 0.25" t-set="position_title">Presupuesto por posición en orden</t>
+                    <t t-elif="position_progress &gt;= 0" t-set="position_title">Presupuesto por posición próximo a excederse</t>
+                    <t t-else="" t-set="position_title">Presupuesto por posición excedido</t>
+                    <i role="img" aria-label="Presupuesto por posición presupuestaria"
+                        t-attf-class="ms-1 fa fa-calculator text-{{ position_progress == -1.0 ? 'muted' : position_progress &gt;= 0.25 ? 'success' : position_progress &gt;= 0 ? 'warning' : 'danger' }}"
+                        t-att-title="position_title"
+                    />
+                </t>
+            </field>
+        </field>
+    </record>
+
+    <!-- Resumen en la actualización del proyecto (debajo del bloque nativo de presupuesto) -->
+    <template id="project_update_position_budget" inherit_id="project.project_update_default_description">
+        <xpath expr="//div[@name='milestone']" position="before">
+            <div name="position_budget" t-if="position_budget">
+                <br/>
+                <h3 class="fw-bolder mt-4"><u>Presupuesto por posición presupuestaria</u></h3>
+                <t>Se ha ejercido el <t t-out="position_budget['percentage']"/>% (<t t-out="format_monetary(position_budget['total']['spent'])"/>) del presupuesto de <t t-out="format_monetary(position_budget['total']['allocated'])"/>. Resta el <t t-out="position_budget['remaining_percentage']"/>% (<t t-out="format_monetary(position_budget['total']['allocated'] - position_budget['total']['spent'])"/>).</t>
+                <div class="mt-4">
+                    <table class="table table-striped">
+                        <thead class="border-2 border-start-0 border-end-0">
+                            <tr>
+                                <th class="fw-bolder">Posiciones presupuestarias</th>
+                                <th class="fw-bolder text-end">Previsto</th>
+                                <th class="fw-bolder text-end">Real</th>
+                                <th class="fw-bolder text-end">Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="position_budget['data']" t-as="position_item">
+                                <td t-if="position_item['name']" t-out="position_item['name']"/>
+                                <td t-else="">Sin posición presupuestaria</td>
+                                <td class="text-end" t-out="format_monetary(position_item['allocated'])"/>
+                                <td class="text-end" t-out="format_monetary(position_item['spent'])"/>
+                                <td t-attf-class="text-end #{'text-success' if position_item['progress'] &gt;= 0 else 'text-danger'}"
+                                    t-out="format_monetary(position_item['spent'] - position_item['allocated'])"/>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <td class="fw-bolder text-end">Total</td>
+                            <td class="fw-bolder text-end" t-out="format_monetary(position_budget['total']['allocated'])"/>
+                            <td class="fw-bolder text-end" t-out="format_monetary(position_budget['total']['spent'])"/>
+                            <td class="fw-bolder text-end" t-out="format_monetary(position_budget['total']['spent'] - position_budget['total']['allocated'])"/>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

@@ -31,7 +31,7 @@ class BudgetLines(models.Model):
         defaults = super().default_get(fields_list)
         # v17: al agregar un presupuesto desde el tablero, la línea toma la
         # cuenta analítica del proyecto.
-        if self.env.context.get("project_update") and "analytic_account_id" in fields_list:
+        if self.env.context.get("position_budget_from_project") and "analytic_account_id" in fields_list:
             project_id = self.env.context.get("default_project_id") or self.env.context.get("active_id")
             project = self.env["project.project"].browse(project_id).exists() if project_id else False
             if project and project.account_id and not defaults.get("analytic_account_id"):

@@ -4,28 +4,40 @@ import { patch } from "@web/core/utils/patch";
 import { ProjectRightSidePanel } from "@project/components/project_right_side_panel/project_right_side_panel";
 
 /**
- * El botón "Agregar presupuesto" abre el presupuesto de base_account_budget
- * (budget.budget) en lugar del presupuesto analítico nativo, como en Odoo 17.
+ * Sección adicional "Presupuestos por posición presupuestaria" (base_account_budget),
+ * independiente de la sección nativa "Presupuestos" de Odoo 19.
  */
 patch(ProjectRightSidePanel.prototype, {
-    addBudget() {
-        const budgetItems = this.state.data.budget_items;
-        if (!budgetItems || budgetItems.budget_model !== "budget.budget") {
-            return super.addBudget(...arguments);
-        }
+    async loadPositionBudgets() {
+        const items = await this.orm.call(
+            "project.project",
+            "get_position_budget_items",
+            [[this.projectId]],
+            { context: this.context },
+        );
+        this.state.data.position_budget_items = items;
+        return items;
+    },
+
+    addPositionBudget() {
+        const items = this.state.data.position_budget_items;
         this.dialog.add(FormViewDialog, {
             context: {
                 ...this.context,
-                project_update: true,
+                position_budget_from_project: true,
                 default_project_id: this.projectId,
-                default_company_id: budgetItems.company_id,
+                default_company_id: items.company_id,
             },
-            title: _t("Nuevo presupuesto"),
+            title: _t("Nuevo presupuesto por posición presupuestaria"),
             resModel: "budget.budget",
             onRecordSaved: async () => {
-                await this.loadBudgets();
+                await this.loadPositionBudgets();
             },
-            viewId: budgetItems.form_view_id,
+            viewId: items.form_view_id,
         });
+    },
+
+    get panelVisible() {
+        return super.panelVisible || this.state.data.show_position_budget_items;
     },
 });
