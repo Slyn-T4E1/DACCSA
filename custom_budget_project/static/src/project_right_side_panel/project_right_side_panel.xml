@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!-- Encabezado como en v17: el detalle se agrupa por posición presupuestaria -->
+    <t t-name="custom_budget_project.ProjectRightSidePanel" t-inherit="project.ProjectRightSidePanel" t-inherit-mode="extension">
+        <xpath expr="//ProjectRightSidePanelSection[@name=&quot;'budgets'&quot;]//thead/tr/th[1]" position="replace">
+            <th>
+                <t t-if="state.data.budget_items.budget_model === 'budget.budget'">Posiciones presupuestarias</t>
+                <t t-else="">Budget</t>
+            </th>
+        </xpath>
+    </t>
+
+    <t t-name="custom_budget_project.BudgetName" t-inherit="project_account_budget.BudgetName" t-inherit-mode="extension">
+        <xpath expr="//i" position="replace">
+            <i>Sin posición presupuestaria</i>
+        </xpath>
+    </t>
+
+</templates>

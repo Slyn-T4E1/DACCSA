@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Partidas del presupuesto (lista general): logro en %, botón Apuntes y sobregiro como en v17 -->
+    <record id="view_budget_line_tree_inherit_custom" model="ir.ui.view">
+        <field name="name">budget.lines.list.inherit.custom</field>
+        <field name="model">budget.lines</field>
+        <field name="inherit_id" ref="base_account_budget.view_budget_line_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="/list" position="attributes">
+                <attribute name="decoration-danger">is_above_budget and planned_amount &lt; 0</attribute>
+                <attribute name="decoration-success">is_above_budget and planned_amount &gt; 0</attribute>
+            </xpath>
+            <field name="analytic_account_id" position="after">
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+            </field>
+            <field name="percentage" position="attributes">
+                <attribute name="widget">percentage</attribute>
+            </field>
+            <field name="percentage" position="after">
+                <field name="is_above_budget" column_invisible="1"/>
+                <field name="budget_state" optional="hide"/>
+                <button type="object" name="action_open_budget_entries" string="Apuntes..."
+                        icon="fa-arrow-circle-o-right"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_budget_line_form_inherit_custom" model="ir.ui.view">
+        <field name="name">budget.lines.form.inherit.custom</field>
+        <field name="model">budget.lines</field>
+        <field name="inherit_id" ref="base_account_budget.view_budget_line_form"/>
+        <field name="arch" type="xml">
+            <field name="percentage" position="attributes">
+                <attribute name="widget">percentage</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!-- Presupuesto: la cuenta analítica solo es obligatoria si no hay posición presupuestaria (v17) -->
+    <record id="crossovered_budget_view_form_inherit_custom" model="ir.ui.view">
+        <field name="name">budget.budget.form.inherit.custom</field>
+        <field name="model">budget.budget</field>
+        <field name="inherit_id" ref="base_account_budget.crossovered_budget_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='budget_line']/list/field[@name='analytic_account_id']" position="attributes">
+                <attribute name="required">not general_budget_id</attribute>
+            </xpath>
+            <xpath expr="//field[@name='budget_line']/list/field[@name='general_budget_id']" position="attributes">
+                <attribute name="required">not analytic_account_id</attribute>
+            </xpath>
+            <xpath expr="//field[@name='budget_line']/list/field[@name='percentage']" position="attributes">
+                <attribute name="widget">percentage</attribute>
+            </xpath>
+            <xpath expr="//field[@name='budget_line']/list/field[@name='percentage']" position="after">
+                <button type="object" name="action_open_budget_entries" string="Apuntes..."
+                        icon="fa-arrow-circle-o-right"/>
+            </xpath>
+            <xpath expr="//field[@name='budget_line']/form//field[@name='analytic_account_id']" position="attributes">
+                <attribute name="required">not general_budget_id</attribute>
+            </xpath>
+            <xpath expr="//field[@name='budget_line']/form//field[@name='general_budget_id']" position="attributes">
+                <attribute name="required">not analytic_account_id</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_analytic_account_form_inherit_custom" model="ir.ui.view">
+        <field name="name">account.analytic.account.form.inherit.custom.budget</field>
+        <field name="model">account.analytic.account</field>
+        <field name="inherit_id" ref="base_account_budget.view_account_analytic_account_form_inherit_budget"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='budget_line']/list/field[@name='percentage']" position="attributes">
+                <attribute name="widget">percentage</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Diálogo "Agregar presupuesto" del tablero del proyecto (v17: se confirma al guardar) -->
+    <record id="view_budget_form_project_dialog" model="ir.ui.view">
+        <field name="name">budget.budget.form.project.dialog</field>
+        <field name="model">budget.budget</field>
+        <field name="inherit_id" ref="base_account_budget.crossovered_budget_view_form"/>
+        <field name="mode">primary</field>
+        <field name="priority">999</field>
+        <field name="arch" type="xml">
+            <xpath expr="//header/button[@name='action_budget_confirm']" position="replace"/>
+            <field name="creating_user_id" position="attributes">
+                <attribute name="options">{'no_open': True}</attribute>
+            </field>
+            <xpath expr="//field[@name='budget_line']/list/field[@name='analytic_account_id']" position="attributes">
+                <attribute name="required">1</attribute>
+                <attribute name="options">{'no_open': True}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='budget_line']/list/field[@name='general_budget_id']" position="attributes">
+                <attribute name="options">{'no_open': True}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='budget_line']/list/button[@name='action_open_budget_entries']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Partidas abiertas desde el tablero del proyecto -->
+    <record id="view_budget_lines_project_list" model="ir.ui.view">
+        <field name="name">budget.lines.list.project</field>
+        <field name="model">budget.lines</field>
+        <field name="inherit_id" ref="base_account_budget.view_budget_line_tree"/>
+        <field name="mode">primary</field>
+        <field name="priority">999</field>
+        <field name="arch" type="xml">
+            <field name="budget_id" position="attributes">
+                <attribute name="options">{'no_open': True}</attribute>
+            </field>
+        </field>
+    </record>
+
+</odoo>
