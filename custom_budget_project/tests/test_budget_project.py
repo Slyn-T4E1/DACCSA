@@ -7,7 +7,7 @@ from odoo import Command
 from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
 
-from odoo.addons.custom_budget_project import restore_budget_post_accounts
+from odoo.addons.custom_budget_project import restore_budget_post_accounts, restore_legacy_budgets
 
 
 @tagged("post_install", "-at_install")
@@ -275,7 +275,7 @@ class TestBudgetProject(TransactionCase):
         })
         self.assertEqual(draft.state, "draft")
 
-    # ----------------------------------------------------------- datos v16
+    # ----------------------------------------------------------- datos v17
 
     def test_restore_budget_post_accounts(self):
         post = self.env["account.budget.post"].create({
@@ -293,3 +293,46 @@ class TestBudgetProject(TransactionCase):
         self.assertEqual(len(result["skipped"]), 2)
         self.assertEqual(post.account_ids, self.expense | self.other_expense)
         self.assertEqual(restore_budget_post_accounts(self.env, rows)["inserted"], 0)
+
+    def test_restore_legacy_budgets(self):
+        analytic_name = self.analytic.name
+        budgets = [
+            (900001, "PPTO v17 confirmado", "confirm", "2026-10-01", "2026-12-31", self.env.user.id),
+            (900002, "PPTO v17 cancelado", "cancel", "2026-10-01", "2026-12-31", 999999),
+            (900003, "PPTO v17 sin líneas", "draft", "2026-01-01", "2026-12-31", False),
+        ]
+        lines = [
+            (1, 900001, self.analytic.id, analytic_name, analytic_name, self.post.id, self.post.name,
+             "2026-10-01", "2026-12-31", None, -1000.0),
+            (2, 900001, self.analytic.id, analytic_name, analytic_name, self.post_2.id, self.post_2.name,
+             "2026-10-01", "2026-12-31", None, -200.0),
+            # Ni la cuenta analítica ni la posición coinciden: se omite.
+            (3, 900002, self.analytic.id, "Otro proyecto", "Otro proyecto", None, None,
+             "2026-10-01", "2026-12-31", None, -50.0),
+        ]
+        result = restore_legacy_budgets(self.env, budgets, lines)
+        self.assertEqual((result["created"], result["existing"]), (3, 0))
+        self.assertEqual(result["skipped_lines"], [3])
+
+        confirmed = self.env.ref("custom_budget_project.legacy_budget_v17_900001")
+        self.assertEqual(confirmed.state, "confirm")
+        self.assertEqual(len(confirmed.budget_line), 2)
+        self.assertAlmostEqual(sum(confirmed.budget_line.mapped("planned_amount")), -1200.0)
+        self.assertAlmostEqual(confirmed.budget_line.filtered(
+            lambda l: l.general_budget_id == self.post).practical_amount, -500.0)
+        cancelled = self.env.ref("custom_budget_project.legacy_budget_v17_900002")
+        self.assertEqual(cancelled.state, "cancel")
+        self.assertFalse(cancelled.creating_user_id)
+        self.assertEqual(self.env.ref("custom_budget_project.legacy_budget_v17_900003").state, "draft")
+
+        # Idempotente.
+        again = restore_legacy_budgets(self.env, budgets, lines)
+        self.assertEqual((again["created"], again["existing"]), (0, 3))
+
+    def test_restore_legacy_budgets_other_database(self):
+        lines = [(1, 900010, self.analytic.id, "x", "x", self.post.id, "Posición de otra base",
+                  "2026-10-01", "2026-12-31", None, -10.0)]
+        budgets = [(900010, "PPTO ajeno", "confirm", "2026-10-01", "2026-12-31", False)]
+        result = restore_legacy_budgets(self.env, budgets, lines)
+        self.assertTrue(result["aborted"])
+        self.assertFalse(self.env["budget.budget"].search([("name", "=", "PPTO ajeno")]))

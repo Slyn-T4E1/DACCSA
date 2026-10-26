@@ -15,9 +15,10 @@ presupuesto analítico de Odoo 17 (account_budget + project_account_budget):
   posición presupuestaria" con previsto, real y diferencia y botón para agregar
   presupuesto; indicador en el kanban y resumen en la actualización del proyecto.
   La sección nativa "Presupuestos" (budget.analytic) de Odoo 19 se conserva.
-* Restaura la relación posición presupuestaria → cuentas contables de v16.
+* Restaura la relación posición presupuestaria → cuentas contables de DACSA (v17).
+* Recrea los 104 presupuestos y 434 líneas de DACSA en Odoo 17 (idempotente).
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "category": "Accounting/Accounting",
     "author": "AKRON",
     "license": "LGPL-3",
