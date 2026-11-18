@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Menús del módulo. Etapa 1: configuración en CRM. -->
+<odoo>
+    <menuitem id="menu_crm_lead_segment_rule"
+              name="Segmentos por calidad del lead"
+              parent="crm.crm_menu_config"
+              action="crm_lead_segment_rule_action"
+              groups="sales_team.group_sale_manager"
+              sequence="50"/>
+</odoo>
