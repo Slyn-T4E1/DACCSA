@@ -10,6 +10,7 @@
             <xpath expr="//field[@name='is_won']" position="after">
                 <field name="report_stage_group"/>
                 <field name="report_close_on_enter" invisible="is_won"/>
+                <field name="report_open_status" invisible="is_won"/>
             </xpath>
         </field>
     </record>
@@ -23,6 +24,7 @@
             <xpath expr="//field[@name='is_won']" position="after">
                 <field name="report_stage_group" optional="show"/>
                 <field name="report_close_on_enter" optional="show"/>
+                <field name="report_open_status" optional="show"/>
             </xpath>
         </field>
     </record>

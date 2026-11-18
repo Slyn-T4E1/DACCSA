@@ -1,0 +1,1107 @@
+{
+ "version": "18.5.10",
+ "sheets": [
+  {
+   "id": "ccr-sheet-main",
+   "name": "Seguimiento comercial",
+   "colNumber": 12,
+   "rowNumber": 80,
+   "rows": {
+    "0": {
+     "size": 40
+    }
+   },
+   "cols": {
+    "0": {
+     "size": 220
+    }
+   },
+   "merges": [],
+   "cells": {
+    "A1": "Seguimiento comercial · Dirección de Nuevos Proyectos",
+    "A7": "Invitaciones a cotizar",
+    "A23": "Ganados, perdidos y venta",
+    "A39": "Embudo por segmento (periodo seleccionado)",
+    "A52": "",
+    "A40": "Concepto",
+    "B40": "Total",
+    "C40": "Sin recompra",
+    "D40": "Recompra",
+    "E40": "Inadecuado",
+    "A41": "Invitaciones a cotizar",
+    "B41": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_segmento\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\"),0)",
+    "C41": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_recompra\",\"report_segment\",\"sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_recompra\",\"report_segment\",\"sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_inadecuado\",\"report_segment\",\"sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_segmento\",\"report_segment\",\"sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\",\"report_segment\",\"sin_recompra\"),0)",
+    "D41": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_recompra\",\"report_segment\",\"recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_recompra\",\"report_segment\",\"recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_inadecuado\",\"report_segment\",\"recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_segmento\",\"report_segment\",\"recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\",\"report_segment\",\"recompra\"),0)",
+    "E41": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_recompra\",\"report_segment\",\"inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_recompra\",\"report_segment\",\"inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_inadecuado\",\"report_segment\",\"inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_segmento\",\"report_segment\",\"inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\",\"report_segment\",\"inadecuado\"),0)",
+    "A42": "Atendidos (cotizados)",
+    "B42": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_segmento\"),0)",
+    "C42": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_recompra\",\"report_segment\",\"sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_recompra\",\"report_segment\",\"sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_inadecuado\",\"report_segment\",\"sin_recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_segmento\",\"report_segment\",\"sin_recompra\"),0)",
+    "D42": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_recompra\",\"report_segment\",\"recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_recompra\",\"report_segment\",\"recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_inadecuado\",\"report_segment\",\"recompra\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_segmento\",\"report_segment\",\"recompra\"),0)",
+    "E42": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_recompra\",\"report_segment\",\"inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_recompra\",\"report_segment\",\"inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_inadecuado\",\"report_segment\",\"inadecuado\"),0)+IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"atendido_sin_segmento\",\"report_segment\",\"inadecuado\"),0)",
+    "A43": "Declinados (no se participó)",
+    "B43": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\"),0)",
+    "C43": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\",\"report_segment\",\"sin_recompra\"),0)",
+    "D43": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\",\"report_segment\",\"recompra\"),0)",
+    "E43": "=IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\",\"report_segment\",\"inadecuado\"),0)",
+    "A44": "Ganados",
+    "B44": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_sin_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_otro\"),0)",
+    "C44": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_sin_recompra\"),0)",
+    "D44": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_recompra\"),0)",
+    "E44": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_otro\"),0)",
+    "A45": "Perdidos",
+    "B45": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_sin_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_otro\"),0)",
+    "C45": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_sin_recompra\"),0)",
+    "D45": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_recompra\"),0)",
+    "E45": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_otro\"),0)",
+    "A46": "Pendientes de respuesta",
+    "B46": "=B42-B44-B45",
+    "C46": "=C42-C44-C45",
+    "D46": "=D42-D44-D45",
+    "E46": "=E42-E44-E45",
+    "A47": "% de bateo (G / atendidos)",
+    "B47": "=IFERROR(B44/B42,0)",
+    "C47": "=IFERROR(C44/C42,0)",
+    "D47": "=IFERROR(D44/D42,0)",
+    "E47": "=IFERROR(E44/E42,0)",
+    "A48": "Efectividad de cierre (G / G+P)",
+    "B48": "=IFERROR(B44/(B44+B45),0)",
+    "C48": "=IFERROR(C44/(C44+C45),0)",
+    "D48": "=IFERROR(D44/(D44+D45),0)",
+    "E48": "=IFERROR(E44/(E44+E45),0)"
+   },
+   "styles": {
+    "A1": 1,
+    "A7": 2,
+    "A23": 2,
+    "A39": 2,
+    "A40:E40": 3,
+    "A41:A48": 4
+   },
+   "formats": {
+    "B47:E48": 1,
+    "B41:E46": 2
+   },
+   "borders": {},
+   "conditionalFormats": [],
+   "dataValidationRules": [],
+   "figures": [
+    {
+     "id": "ccr-kpi-sales",
+     "col": 0,
+     "row": 1,
+     "offset": {
+      "x": 0,
+      "y": 4
+     },
+     "width": 190,
+     "height": 100,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-kpi-sales",
+      "keyValue": "Datos!C4",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "ganado por fecha de cierre"
+      },
+      "title": {
+       "text": "Venta",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#EFF6FF",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-kpi-won",
+     "col": 0,
+     "row": 1,
+     "offset": {
+      "x": 200,
+      "y": 4
+     },
+     "width": 190,
+     "height": 100,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-kpi-won",
+      "keyValue": "Datos!C2",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "cotizaciones ganadas"
+      },
+      "title": {
+       "text": "Ganados",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#EFF6FF",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-kpi-hit",
+     "col": 0,
+     "row": 1,
+     "offset": {
+      "x": 400,
+      "y": 4
+     },
+     "width": 190,
+     "height": 100,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-kpi-hit",
+      "keyValue": "Datos!C7",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "ganados / atendidos"
+      },
+      "title": {
+       "text": "% de bateo",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#F0FDF4",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-kpi-close",
+     "col": 0,
+     "row": 1,
+     "offset": {
+      "x": 600,
+      "y": 4
+     },
+     "width": 190,
+     "height": 100,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-kpi-close",
+      "keyValue": "Datos!C8",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "ganados / (ganados + perdidos)"
+      },
+      "title": {
+       "text": "Efectividad",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#F0FDF4",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-kpi-pipeline",
+     "col": 0,
+     "row": 1,
+     "offset": {
+      "x": 800,
+      "y": 4
+     },
+     "width": 190,
+     "height": 100,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-kpi-pipeline",
+      "keyValue": "Datos!C9",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "pendiente de respuesta, hoy"
+      },
+      "title": {
+       "text": "Pipeline enviado",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#FFF7ED",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-kpi-invitations",
+     "col": 0,
+     "row": 1,
+     "offset": {
+      "x": 1000,
+      "y": 4
+     },
+     "width": 190,
+     "height": 100,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-kpi-invitations",
+      "keyValue": "Datos!C5",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "cotizadas + declinadas"
+      },
+      "title": {
+       "text": "Invitaciones",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#F9FAFB",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-chart-invitations",
+     "col": 0,
+     "row": 7,
+     "offset": {
+      "x": 0,
+      "y": 0
+     },
+     "width": 590,
+     "height": 340,
+     "tag": "chart",
+     "data": {
+      "type": "odoo_bar",
+      "chartId": "ccr-chart-invitations",
+      "title": {
+       "text": "Invitaciones a cotizar por mes",
+       "bold": true,
+       "fontSize": 16,
+       "color": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "legendPosition": "top",
+      "stacked": true,
+      "verticalAxisPosition": "left",
+      "dataSets": [],
+      "metaData": {
+       "groupBy": [
+        "create_date:month",
+        "report_invitation_status"
+       ],
+       "measure": "__count",
+       "order": null,
+       "resModel": "crm.lead",
+       "mode": "bar"
+      },
+      "searchParams": {
+       "comparison": null,
+       "context": {},
+       "domain": [
+        [
+         "type",
+         "=",
+         "opportunity"
+        ],
+        [
+         "active",
+         "in",
+         [
+          true,
+          false
+         ]
+        ],
+        [
+         "report_invitation_status",
+         "!=",
+         false
+        ]
+       ],
+       "groupBy": [
+        "create_date:month",
+        "report_invitation_status"
+       ],
+       "orderBy": []
+      },
+      "axesDesign": {
+       "x": {
+        "title": {
+         "text": ""
+        }
+       },
+       "y": {
+        "title": {
+         "text": ""
+        }
+       }
+      },
+      "fieldMatching": {
+       "ccr-flt-vendedor": {
+        "chain": "user_id",
+        "type": "many2one"
+       },
+       "ccr-flt-periodo": {
+        "chain": "create_date",
+        "type": "datetime",
+        "offset": 0
+       }
+      }
+     }
+    },
+    {
+     "id": "ccr-chart-invitations-q",
+     "col": 0,
+     "row": 7,
+     "offset": {
+      "x": 620,
+      "y": 0
+     },
+     "width": 590,
+     "height": 340,
+     "tag": "chart",
+     "data": {
+      "type": "odoo_bar",
+      "chartId": "ccr-chart-invitations-q",
+      "title": {
+       "text": "Histórico de invitaciones por trimestre",
+       "bold": true,
+       "fontSize": 16,
+       "color": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "legendPosition": "top",
+      "stacked": true,
+      "verticalAxisPosition": "left",
+      "dataSets": [],
+      "metaData": {
+       "groupBy": [
+        "create_date:quarter",
+        "report_invitation_status"
+       ],
+       "measure": "__count",
+       "order": null,
+       "resModel": "crm.lead",
+       "mode": "bar"
+      },
+      "searchParams": {
+       "comparison": null,
+       "context": {},
+       "domain": [
+        [
+         "type",
+         "=",
+         "opportunity"
+        ],
+        [
+         "active",
+         "in",
+         [
+          true,
+          false
+         ]
+        ],
+        [
+         "report_invitation_status",
+         "!=",
+         false
+        ]
+       ],
+       "groupBy": [
+        "create_date:quarter",
+        "report_invitation_status"
+       ],
+       "orderBy": []
+      },
+      "axesDesign": {
+       "x": {
+        "title": {
+         "text": ""
+        }
+       },
+       "y": {
+        "title": {
+         "text": ""
+        }
+       }
+      },
+      "fieldMatching": {
+       "ccr-flt-vendedor": {
+        "chain": "user_id",
+        "type": "many2one"
+       }
+      }
+     }
+    },
+    {
+     "id": "ccr-chart-close",
+     "col": 0,
+     "row": 23,
+     "offset": {
+      "x": 0,
+      "y": 0
+     },
+     "width": 590,
+     "height": 340,
+     "tag": "chart",
+     "data": {
+      "type": "odoo_bar",
+      "chartId": "ccr-chart-close",
+      "title": {
+       "text": "Ganados y perdidos por mes de cierre",
+       "bold": true,
+       "fontSize": 16,
+       "color": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "legendPosition": "top",
+      "stacked": true,
+      "verticalAxisPosition": "left",
+      "dataSets": [],
+      "metaData": {
+       "groupBy": [
+        "date_closed:month",
+        "report_close_status"
+       ],
+       "measure": "__count",
+       "order": null,
+       "resModel": "crm.lead",
+       "mode": "bar"
+      },
+      "searchParams": {
+       "comparison": null,
+       "context": {},
+       "domain": [
+        [
+         "type",
+         "=",
+         "opportunity"
+        ],
+        [
+         "active",
+         "in",
+         [
+          true,
+          false
+         ]
+        ],
+        [
+         "report_close_status",
+         "!=",
+         false
+        ]
+       ],
+       "groupBy": [
+        "date_closed:month",
+        "report_close_status"
+       ],
+       "orderBy": []
+      },
+      "axesDesign": {
+       "x": {
+        "title": {
+         "text": ""
+        }
+       },
+       "y": {
+        "title": {
+         "text": ""
+        }
+       }
+      },
+      "fieldMatching": {
+       "ccr-flt-vendedor": {
+        "chain": "user_id",
+        "type": "many2one"
+       },
+       "ccr-flt-periodo": {
+        "chain": "date_closed",
+        "type": "datetime",
+        "offset": 0
+       }
+      }
+     }
+    },
+    {
+     "id": "ccr-chart-sales",
+     "col": 0,
+     "row": 23,
+     "offset": {
+      "x": 620,
+      "y": 0
+     },
+     "width": 590,
+     "height": 340,
+     "tag": "chart",
+     "data": {
+      "type": "odoo_bar",
+      "chartId": "ccr-chart-sales",
+      "title": {
+       "text": "Venta por mes de cierre",
+       "bold": true,
+       "fontSize": 16,
+       "color": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "legendPosition": "top",
+      "stacked": true,
+      "verticalAxisPosition": "left",
+      "dataSets": [],
+      "metaData": {
+       "groupBy": [
+        "date_closed:month",
+        "report_segment"
+       ],
+       "measure": "expected_revenue",
+       "order": null,
+       "resModel": "crm.lead",
+       "mode": "bar"
+      },
+      "searchParams": {
+       "comparison": null,
+       "context": {},
+       "domain": [
+        [
+         "type",
+         "=",
+         "opportunity"
+        ],
+        [
+         "won_status",
+         "=",
+         "won"
+        ],
+        [
+         "report_stage_group",
+         "!=",
+         "excluido"
+        ]
+       ],
+       "groupBy": [
+        "date_closed:month",
+        "report_segment"
+       ],
+       "orderBy": []
+      },
+      "axesDesign": {
+       "x": {
+        "title": {
+         "text": ""
+        }
+       },
+       "y": {
+        "title": {
+         "text": ""
+        }
+       }
+      },
+      "fieldMatching": {
+       "ccr-flt-vendedor": {
+        "chain": "user_id",
+        "type": "many2one"
+       },
+       "ccr-flt-periodo": {
+        "chain": "date_closed",
+        "type": "datetime",
+        "offset": 0
+       }
+      }
+     }
+    },
+    {
+     "id": "ccr-chart-lost-reasons",
+     "col": 0,
+     "row": 39,
+     "offset": {
+      "x": 620,
+      "y": 0
+     },
+     "width": 590,
+     "height": 340,
+     "tag": "chart",
+     "data": {
+      "type": "odoo_bar",
+      "chartId": "ccr-chart-lost-reasons",
+      "title": {
+       "text": "Razones de pérdida",
+       "bold": true,
+       "fontSize": 16,
+       "color": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "legendPosition": "top",
+      "stacked": true,
+      "verticalAxisPosition": "left",
+      "dataSets": [],
+      "metaData": {
+       "groupBy": [
+        "lost_reason_id"
+       ],
+       "measure": "__count",
+       "order": null,
+       "resModel": "crm.lead",
+       "mode": "bar"
+      },
+      "searchParams": {
+       "comparison": null,
+       "context": {},
+       "domain": [
+        [
+         "type",
+         "=",
+         "opportunity"
+        ],
+        [
+         "active",
+         "=",
+         false
+        ],
+        [
+         "won_status",
+         "=",
+         "lost"
+        ]
+       ],
+       "groupBy": [
+        "lost_reason_id"
+       ],
+       "orderBy": []
+      },
+      "axesDesign": {
+       "x": {
+        "title": {
+         "text": ""
+        }
+       },
+       "y": {
+        "title": {
+         "text": ""
+        }
+       }
+      },
+      "fieldMatching": {
+       "ccr-flt-vendedor": {
+        "chain": "user_id",
+        "type": "many2one"
+       },
+       "ccr-flt-periodo": {
+        "chain": "date_closed",
+        "type": "datetime",
+        "offset": 0
+       }
+      }
+     }
+    },
+    {
+     "id": "ccr-chart-prospecting",
+     "col": 0,
+     "row": 52,
+     "offset": {
+      "x": 0,
+      "y": 0
+     },
+     "width": 590,
+     "height": 340,
+     "tag": "chart",
+     "data": {
+      "type": "odoo_bar",
+      "chartId": "ccr-chart-prospecting",
+      "title": {
+       "text": "Prospección Sin recompra por etapa (mes de creación)",
+       "bold": true,
+       "fontSize": 16,
+       "color": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "legendPosition": "top",
+      "stacked": true,
+      "verticalAxisPosition": "left",
+      "dataSets": [],
+      "metaData": {
+       "groupBy": [
+        "create_date:month",
+        "stage_id"
+       ],
+       "measure": "__count",
+       "order": null,
+       "resModel": "crm.lead",
+       "mode": "bar"
+      },
+      "searchParams": {
+       "comparison": null,
+       "context": {},
+       "domain": [
+        [
+         "type",
+         "=",
+         "opportunity"
+        ],
+        [
+         "active",
+         "in",
+         [
+          true,
+          false
+         ]
+        ],
+        [
+         "report_segment",
+         "=",
+         "sin_recompra"
+        ],
+        [
+         "report_stage_group",
+         "in",
+         [
+          "prospeccion",
+          "por_enviar",
+          "declinado"
+         ]
+        ]
+       ],
+       "groupBy": [
+        "create_date:month",
+        "stage_id"
+       ],
+       "orderBy": []
+      },
+      "axesDesign": {
+       "x": {
+        "title": {
+         "text": ""
+        }
+       },
+       "y": {
+        "title": {
+         "text": ""
+        }
+       }
+      },
+      "fieldMatching": {
+       "ccr-flt-vendedor": {
+        "chain": "user_id",
+        "type": "many2one"
+       },
+       "ccr-flt-periodo": {
+        "chain": "create_date",
+        "type": "datetime",
+        "offset": 0
+       }
+      }
+     }
+    }
+   ],
+   "tables": [],
+   "areGridLinesVisible": false,
+   "isVisible": true,
+   "headerGroups": {
+    "ROW": [],
+    "COL": []
+   },
+   "comments": {}
+  },
+  {
+   "id": "ccr-sheet-data",
+   "name": "Datos",
+   "colNumber": 4,
+   "rowNumber": 20,
+   "rows": {},
+   "cols": {
+    "0": {
+     "size": 260
+    }
+   },
+   "merges": [],
+   "cells": {
+    "A1": "Indicador",
+    "B1": "Valor",
+    "C1": "Texto",
+    "A2": "Ganados",
+    "B2": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_sin_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"ganado_otro\"),0)",
+    "A3": "Perdidos",
+    "B3": "=IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_sin_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"__count\",\"report_close_status\",\"perdido_otro\"),0)",
+    "A4": "Venta ganada",
+    "B4": "=IFERROR(PIVOT.VALUE(1,\"expected_revenue\",\"report_close_status\",\"ganado_sin_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"expected_revenue\",\"report_close_status\",\"ganado_recompra\"),0)+IFERROR(PIVOT.VALUE(1,\"expected_revenue\",\"report_close_status\",\"ganado_otro\"),0)",
+    "A5": "Invitaciones",
+    "B5": "=IFERROR(PIVOT.VALUE(2,\"__count\"),0)",
+    "A6": "Atendidas",
+    "B6": "=B5-IFERROR(PIVOT.VALUE(2,\"__count\",\"report_invitation_status\",\"no_atendido\"),0)",
+    "A7": "% de bateo (ganados / atendidos)",
+    "B7": "=IFERROR(B2/B6,0)",
+    "A8": "Efectividad de cierre (G / G+P)",
+    "B8": "=IFERROR(B2/(B2+B3),0)",
+    "A9": "Pipeline enviado (monto)",
+    "B9": "=IFERROR(PIVOT.VALUE(3,\"expected_revenue\"),0)",
+    "A10": "Pipeline enviado (cotizaciones)",
+    "B10": "=IFERROR(PIVOT.VALUE(3,\"__count\"),0)",
+    "C2": "=FORMAT.LARGE.NUMBER(B2)",
+    "C3": "=FORMAT.LARGE.NUMBER(B3)",
+    "C4": "=FORMAT.LARGE.NUMBER(B4,\"m\")",
+    "C5": "=FORMAT.LARGE.NUMBER(B5)",
+    "C6": "=FORMAT.LARGE.NUMBER(B6)",
+    "C7": "=B7",
+    "C8": "=B8",
+    "C9": "=FORMAT.LARGE.NUMBER(B9,\"m\")",
+    "C10": "=B10"
+   },
+   "styles": {
+    "A1:C1": 4
+   },
+   "formats": {
+    "B7:C8": 1
+   },
+   "borders": {},
+   "conditionalFormats": [],
+   "dataValidationRules": [],
+   "figures": [],
+   "tables": [],
+   "areGridLinesVisible": true,
+   "isVisible": false,
+   "headerGroups": {
+    "ROW": [],
+    "COL": []
+   },
+   "comments": {}
+  }
+ ],
+ "styles": {
+  "1": {
+   "bold": true,
+   "fontSize": 18,
+   "textColor": "#1F2937"
+  },
+  "2": {
+   "bold": true,
+   "fontSize": 13,
+   "textColor": "#714B67"
+  },
+  "3": {
+   "bold": true,
+   "fillColor": "#1F2A44",
+   "textColor": "#FFFFFF"
+  },
+  "4": {
+   "bold": true
+  }
+ },
+ "formats": {
+  "1": "0.0%",
+  "2": "#,##0",
+  "3": "[$$]#,##0",
+  "4": "dd/mm/yyyy"
+ },
+ "borders": {},
+ "revisionId": "START_REVISION",
+ "uniqueFigureIds": true,
+ "settings": {
+  "locale": {
+   "name": "Spanish (MX)",
+   "code": "es_MX",
+   "thousandsSeparator": ",",
+   "decimalSeparator": ".",
+   "dateFormat": "dd/mm/yyyy",
+   "timeFormat": "hh:mm:ss",
+   "formulaArgSeparator": ",",
+   "weekStart": 1
+  }
+ },
+ "pivots": {
+  "1": {
+   "type": "ODOO",
+   "id": "1",
+   "formulaId": "1",
+   "name": "Cerradas",
+   "model": "crm.lead",
+   "domain": [
+    [
+     "type",
+     "=",
+     "opportunity"
+    ],
+    [
+     "active",
+     "in",
+     [
+      true,
+      false
+     ]
+    ],
+    [
+     "report_close_status",
+     "!=",
+     false
+    ]
+   ],
+   "context": {},
+   "columns": [],
+   "rows": [
+    {
+     "fieldName": "report_close_status"
+    }
+   ],
+   "measures": [
+    {
+     "id": "__count",
+     "fieldName": "__count"
+    },
+    {
+     "id": "expected_revenue",
+     "fieldName": "expected_revenue"
+    }
+   ],
+   "sortedColumn": null,
+   "fieldMatching": {
+    "ccr-flt-vendedor": {
+     "chain": "user_id",
+     "type": "many2one"
+    },
+    "ccr-flt-periodo": {
+     "chain": "date_closed",
+     "type": "datetime",
+     "offset": 0
+    }
+   }
+  },
+  "2": {
+   "type": "ODOO",
+   "id": "2",
+   "formulaId": "2",
+   "name": "Invitaciones",
+   "model": "crm.lead",
+   "domain": [
+    [
+     "type",
+     "=",
+     "opportunity"
+    ],
+    [
+     "active",
+     "in",
+     [
+      true,
+      false
+     ]
+    ],
+    [
+     "report_invitation_status",
+     "!=",
+     false
+    ]
+   ],
+   "context": {},
+   "columns": [],
+   "rows": [
+    {
+     "fieldName": "report_invitation_status"
+    },
+    {
+     "fieldName": "report_segment"
+    }
+   ],
+   "measures": [
+    {
+     "id": "__count",
+     "fieldName": "__count"
+    }
+   ],
+   "sortedColumn": null,
+   "fieldMatching": {
+    "ccr-flt-vendedor": {
+     "chain": "user_id",
+     "type": "many2one"
+    },
+    "ccr-flt-periodo": {
+     "chain": "create_date",
+     "type": "datetime",
+     "offset": 0
+    }
+   }
+  },
+  "3": {
+   "type": "ODOO",
+   "id": "3",
+   "formulaId": "3",
+   "name": "Pipeline enviado",
+   "model": "crm.lead",
+   "domain": [
+    [
+     "type",
+     "=",
+     "opportunity"
+    ],
+    [
+     "report_open_status",
+     "=",
+     "enviada"
+    ],
+    [
+     "won_status",
+     "=",
+     "pending"
+    ]
+   ],
+   "context": {},
+   "columns": [],
+   "rows": [
+    {
+     "fieldName": "report_segment"
+    }
+   ],
+   "measures": [
+    {
+     "id": "__count",
+     "fieldName": "__count"
+    },
+    {
+     "id": "expected_revenue",
+     "fieldName": "expected_revenue"
+    }
+   ],
+   "sortedColumn": null,
+   "fieldMatching": {
+    "ccr-flt-vendedor": {
+     "chain": "user_id",
+     "type": "many2one"
+    }
+   }
+  }
+ },
+ "pivotNextId": 4,
+ "customTableStyles": {},
+ "globalFilters": [
+  {
+   "id": "ccr-flt-periodo",
+   "type": "date",
+   "label": "Periodo",
+   "defaultValue": "this_year"
+  },
+  {
+   "id": "ccr-flt-vendedor",
+   "type": "relation",
+   "label": "Vendedor",
+   "modelName": "res.users",
+   "defaultValueDisplayNames": []
+  }
+ ],
+ "lists": {},
+ "listNextId": 1,
+ "chartOdooMenusReferences": {
+  "ccr-chart-invitations": "custom_business_reports.menu_business_report_invitations",
+  "ccr-chart-invitations-q": "custom_business_reports.menu_business_report_invitations",
+  "ccr-chart-close": "custom_business_reports.menu_business_report_close_status",
+  "ccr-chart-sales": "custom_business_reports.menu_business_report_sales",
+  "ccr-chart-lost-reasons": "custom_business_reports.menu_business_list_lost",
+  "ccr-chart-prospecting": "custom_business_reports.menu_business_list_prospecting"
+ }
+}

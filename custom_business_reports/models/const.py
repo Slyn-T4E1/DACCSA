@@ -47,5 +47,40 @@ NO_MOVE_FIELDS = {
     'automated_probability',
     'report_last_move_date',
     'report_segment',
+    'report_invitation_status',
+    'report_close_status',
     'message_main_attachment_id',
 }
+
+# ----------------------------------------------------------------------
+# Etapa 2 · Tablero comercial
+# ----------------------------------------------------------------------
+
+# Estatus "abierto" de la etapa, para los listados del pipeline.
+# - enviada: la cotización se envió y se espera respuesta del cliente
+# - pausa:   el cliente pospuso el proyecto (En Pausa)
+OPEN_STATUS_SELECTION = [
+    ('enviada', 'Enviada · pendiente de respuesta'),
+    ('pausa', 'En pausa'),
+]
+
+# Clasificación de una invitación a cotizar (gráfica "Invitaciones a cotizar"):
+# atendida (cotizada) por segmento, o no atendida (se declinó).
+INVITATION_STATUS_SELECTION = [
+    ('atendido_sin_recompra', 'Atendido · Sin recompra'),
+    ('atendido_recompra', 'Atendido · Recompra'),
+    ('atendido_inadecuado', 'Atendido · Inadecuado'),
+    ('atendido_sin_segmento', 'Atendido · Sin segmento'),
+    ('no_atendido', 'No atendido (no se participó)'),
+]
+
+# Resultado de una cotización cerrada (gráfica "Ganados y perdidos"):
+# ganada o perdida, por segmento.
+CLOSE_STATUS_SELECTION = [
+    ('ganado_sin_recompra', 'Ganado · Sin recompra'),
+    ('ganado_recompra', 'Ganado · Recompra'),
+    ('ganado_otro', 'Ganado · Otro segmento'),
+    ('perdido_sin_recompra', 'Perdido · Sin recompra'),
+    ('perdido_recompra', 'Perdido · Recompra'),
+    ('perdido_otro', 'Perdido · Otro segmento'),
+]

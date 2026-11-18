@@ -111,3 +111,71 @@ class TestCrmReports(TransactionCase):
         rule.segment = other
         self.lead.invalidate_recordset(['report_segment'])
         self.assertEqual(self.lead.report_segment, other)
+
+
+@tagged('post_install', '-at_install')
+class TestCommercialDashboard(TransactionCase):
+    """Pruebas de la Etapa 2 (seguimiento comercial)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Stage = cls.env['crm.stage']
+        cls.stage_sent = Stage.create({
+            'name': 'CCR2 Enviada', 'report_stage_group': 'cotizado', 'report_open_status': 'enviada',
+        })
+        cls.stage_declined = Stage.create({'name': 'CCR2 No se participó', 'report_stage_group': 'declinado'})
+        cls.stage_zero = Stage.create({'name': "CCR2 Ganados en 0's", 'report_stage_group': 'excluido'})
+        cls.stage_idea = Stage.create({'name': 'CCR2 Idea', 'report_stage_group': 'prospeccion'})
+        cls.lead = cls.env['crm.lead'].create({
+            'name': 'CCR2 oportunidad', 'type': 'opportunity', 'stage_id': cls.stage_sent.id,
+        })
+
+    def _set_segment(self, segment):
+        """Fija el segmento directamente (sin depender del campo Studio)."""
+        self.lead.with_context(ccr_skip_move=True).write({'report_segment': segment})
+
+    def test_invitation_status(self):
+        """Cotizada = atendida por segmento; declinada = no atendida; prospección = vacío."""
+        self._set_segment('recompra')
+        self.assertEqual(self.lead.report_invitation_status, 'atendido_recompra')
+        self.assertEqual(self.lead.report_open_status, 'enviada')
+        self.lead.stage_id = self.stage_declined
+        self.assertEqual(self.lead.report_invitation_status, 'no_atendido')
+        self.lead.stage_id = self.stage_idea
+        self.assertFalse(self.lead.report_invitation_status)
+
+    def test_close_status(self):
+        """Ganado / perdido por segmento; Ganados en 0's no cuenta."""
+        self._set_segment('sin_recompra')
+        self.assertFalse(self.lead.report_close_status)
+        self.lead.action_set_lost()
+        self.assertEqual(self.lead.report_close_status, 'perdido_sin_recompra')
+        self.lead.action_unarchive()
+        self.lead.action_set_won()
+        self.assertEqual(self.lead.report_close_status, 'ganado_sin_recompra')
+        self.lead.stage_id = self.stage_zero
+        self.assertFalse(self.lead.report_close_status)
+
+    def test_dashboards_loaded(self):
+        """Los dos tableros existen y su JSON se puede leer."""
+        import json
+        for xmlid in ('custom_business_reports.spreadsheet_dashboard_commercial',
+                      'custom_business_reports.spreadsheet_dashboard_commercial_lists'):
+            dashboard = self.env.ref(xmlid)
+            data = json.loads(dashboard.spreadsheet_data)
+            self.assertTrue(data['sheets'], xmlid)
+
+    def test_report_actions_run(self):
+        """Las acciones del menú Seguimiento comercial abren sin error."""
+        from odoo.tools.safe_eval import safe_eval
+        xmlids = self.env['ir.model.data'].search([
+            ('module', '=', 'custom_business_reports'),
+            ('model', '=', 'ir.actions.act_window'),
+        ])
+        actions = self.env['ir.actions.act_window'].browse(xmlids.mapped('res_id'))
+        self.assertGreaterEqual(len(actions), 11)
+        for action in actions:
+            domain = safe_eval(action.domain or '[]')
+            ctx = safe_eval(action.context or '{}')
+            self.env['crm.lead'].with_context(active_test=ctx.get('active_test', True)).search(domain, limit=1)

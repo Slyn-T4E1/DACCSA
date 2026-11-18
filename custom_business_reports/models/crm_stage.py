@@ -2,7 +2,7 @@
 """Configuración de reportes en las etapas del CRM (crm.stage)."""
 from odoo import fields, models
 
-from .const import STAGE_GROUP_SELECTION
+from .const import OPEN_STATUS_SELECTION, STAGE_GROUP_SELECTION
 
 
 class CrmStage(models.Model):
@@ -24,4 +24,13 @@ class CrmStage(models.Model):
         string='Registrar fecha de cierre al entrar',
         help='Al mover una oportunidad a esta etapa se llena la fecha de '
              'cierre (si estaba vacía). Pensado para "Cancelado".',
+    )
+
+    # Etapa 2: identifica las etapas abiertas que tienen listado propio en el
+    # tablero comercial ("Pipeline abierto" = Enviada, "En pausa" = En Pausa).
+    report_open_status = fields.Selection(
+        OPEN_STATUS_SELECTION,
+        string='Listado del pipeline',
+        help='Enviada: cotizaciones pendientes de respuesta (pipeline abierto). '
+             'En pausa: proyectos que el cliente pospuso.',
     )

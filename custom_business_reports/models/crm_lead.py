@@ -16,8 +16,10 @@ from odoo import api, fields, models
 from odoo.tools import SQL
 
 from .const import (
+    CLOSE_STATUS_SELECTION,
     IDLE_LATE_DAYS,
     IDLE_WARNING_DAYS,
+    INVITATION_STATUS_SELECTION,
     NO_MOVE_FIELDS,
     OPEN_STAGE_GROUPS,
     QUALITY_FIELD,
@@ -84,6 +86,44 @@ class CrmLead(models.Model):
     )
 
     # ------------------------------------------------------------------
+    # Campos de la Etapa 2 (tablero comercial)
+    # ------------------------------------------------------------------
+
+    # Estatus de la etapa para los listados del pipeline (Enviada / En pausa).
+    report_open_status = fields.Selection(
+        related='stage_id.report_open_status',
+        string='Listado del pipeline',
+        store=True,
+    )
+
+    # Clasificación de la invitación a cotizar: atendida por segmento o no
+    # atendida. Alimenta la gráfica apilada "Invitaciones a cotizar".
+    report_invitation_status = fields.Selection(
+        INVITATION_STATUS_SELECTION,
+        string='Invitación a cotizar',
+        compute='_compute_report_invitation_status',
+        store=True,
+        index=True,
+    )
+
+    # Resultado de la cotización: ganada o perdida por segmento. Alimenta la
+    # gráfica "Ganados y perdidos" y los listados de ganados y perdidos.
+    report_close_status = fields.Selection(
+        CLOSE_STATUS_SELECTION,
+        string='Resultado',
+        compute='_compute_report_close_status',
+        store=True,
+        index=True,
+    )
+
+    # Antigüedad (días desde la creación) para los listados de pipeline y
+    # pausa. No se guarda porque cambia cada día.
+    report_age_days = fields.Integer(
+        string='Días desde la creación',
+        compute='_compute_report_age_days',
+    )
+
+    # ------------------------------------------------------------------
     # Cálculos
     # ------------------------------------------------------------------
     @api.depends('report_last_move_date', 'won_status', 'active', 'report_stage_group')
@@ -110,6 +150,40 @@ class CrmLead(models.Model):
                 lead.report_idle_level = 'warning'
             else:
                 lead.report_idle_level = 'ok'
+
+    @api.depends('report_stage_group', 'report_segment')
+    def _compute_report_invitation_status(self):
+        """Invitación atendida (cotizada) por segmento o no atendida (declinada).
+
+        Solo aplica a oportunidades que llegaron a cotizarse o se declinaron;
+        las que siguen en prospección o cotizándose quedan vacías.
+        """
+        for lead in self:
+            if lead.report_stage_group == 'declinado':
+                lead.report_invitation_status = 'no_atendido'
+            elif lead.report_stage_group == 'cotizado':
+                lead.report_invitation_status = 'atendido_%s' % (lead.report_segment or 'sin_segmento')
+            else:
+                lead.report_invitation_status = False
+
+    @api.depends('won_status', 'report_segment', 'report_stage_group')
+    def _compute_report_close_status(self):
+        """Ganado o perdido por segmento. "Ganados en 0's" no cuenta."""
+        segment_key = {'sin_recompra': 'sin_recompra', 'recompra': 'recompra'}
+        for lead in self:
+            if lead.report_stage_group == 'excluido' or lead.won_status not in ('won', 'lost'):
+                lead.report_close_status = False
+                continue
+            prefix = 'ganado' if lead.won_status == 'won' else 'perdido'
+            lead.report_close_status = '%s_%s' % (prefix, segment_key.get(lead.report_segment, 'otro'))
+
+    @api.depends('create_date')
+    def _compute_report_age_days(self):
+        """Días transcurridos desde que se creó la oportunidad."""
+        today = fields.Date.context_today(self)
+        for lead in self:
+            created = lead.create_date and fields.Date.context_today(lead, lead.create_date)
+            lead.report_age_days = (today - created).days if created else 0
 
     # ------------------------------------------------------------------
     # Altas y cambios

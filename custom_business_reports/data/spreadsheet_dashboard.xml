@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Etapa 2 · Tablero "Seguimiento comercial" en la app Tableros.
+    El contenido está en data/files/commercial_dashboard.json y
+    data/files/commercial_lists_dashboard.json, y se genera con
+    tools/generate_commercial_dashboard.py (no editar el JSON a mano).
+    noupdate="0": al actualizar el módulo se reemplaza el tablero con la
+    versión del código; los cambios hechos en pantalla se pierden.
+-->
+<odoo>
+    <!-- Grupo propio en Tableros para los reportes de DACSA -->
+    <record id="spreadsheet_dashboard_group_business" model="spreadsheet.dashboard.group">
+        <field name="name">Dirección y comercial</field>
+        <field name="sequence">5</field>
+    </record>
+
+    <record id="spreadsheet_dashboard_commercial" model="spreadsheet.dashboard">
+        <field name="name">Seguimiento comercial</field>
+        <field name="spreadsheet_binary_data" type="base64" file="custom_business_reports/data/files/commercial_dashboard.json"/>
+        <field name="main_data_model_ids" eval="[(4, ref('crm.model_crm_lead'))]"/>
+        <field name="dashboard_group_id" ref="spreadsheet_dashboard_group_business"/>
+        <field name="group_ids" eval="[Command.link(ref('sales_team.group_sale_salesman'))]"/>
+        <field name="sequence">10</field>
+        <field name="is_published">True</field>
+    </record>
+
+    <!-- Listados por estatus (Tableros solo muestra la primera hoja de cada
+         tablero, por eso los listados van en un tablero aparte) -->
+    <record id="spreadsheet_dashboard_commercial_lists" model="spreadsheet.dashboard">
+        <field name="name">Listados comerciales</field>
+        <field name="spreadsheet_binary_data" type="base64" file="custom_business_reports/data/files/commercial_lists_dashboard.json"/>
+        <field name="main_data_model_ids" eval="[(4, ref('crm.model_crm_lead'))]"/>
+        <field name="dashboard_group_id" ref="spreadsheet_dashboard_group_business"/>
+        <field name="group_ids" eval="[Command.link(ref('sales_team.group_sale_salesman'))]"/>
+        <field name="sequence">20</field>
+        <field name="is_published">True</field>
+    </record>
+</odoo>

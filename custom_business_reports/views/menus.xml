@@ -7,4 +7,30 @@
               action="crm_lead_segment_rule_action"
               groups="sales_team.group_sale_manager"
               sequence="50"/>
+
+    <!-- Etapa 2: CRM › Reportes › Seguimiento comercial -->
+    <menuitem id="menu_business_reports_root" name="Seguimiento comercial"
+              parent="crm.crm_menu_report" sequence="5"/>
+    <menuitem id="menu_business_report_invitations" parent="menu_business_reports_root"
+              action="action_business_report_invitations" sequence="10"/>
+    <menuitem id="menu_business_report_close_status" parent="menu_business_reports_root"
+              action="action_business_report_close_status" sequence="20"/>
+    <menuitem id="menu_business_report_sales" parent="menu_business_reports_root"
+              action="action_business_report_sales" sequence="30"/>
+    <menuitem id="menu_business_list_won" parent="menu_business_reports_root"
+              action="action_business_list_won" sequence="40"/>
+    <menuitem id="menu_business_list_lost" parent="menu_business_reports_root"
+              action="action_business_list_lost" sequence="50"/>
+    <menuitem id="menu_business_list_cancelled" parent="menu_business_reports_root"
+              action="action_business_list_cancelled" sequence="60"/>
+    <menuitem id="menu_business_list_paused" parent="menu_business_reports_root"
+              action="action_business_list_paused" sequence="70"/>
+    <menuitem id="menu_business_list_pipeline" parent="menu_business_reports_root"
+              action="action_business_list_pipeline" sequence="80"/>
+    <menuitem id="menu_business_list_to_send" parent="menu_business_reports_root"
+              action="action_business_list_to_send" sequence="90"/>
+    <menuitem id="menu_business_list_prospecting" parent="menu_business_reports_root"
+              action="action_business_list_prospecting" sequence="100"/>
+    <menuitem id="menu_business_list_idle" parent="menu_business_reports_root"
+              action="action_business_list_idle" sequence="110"/>
 </odoo>

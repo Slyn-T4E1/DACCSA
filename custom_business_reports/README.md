@@ -10,7 +10,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | Etapa | Versión | Contenido | Se prueba con |
 |---|---|---|---|
 | 1 | 19.0.1.0.0 | Base comercial en CRM: segmento por calidad del lead, grupo de etapa, fecha de cierre editable y automática en Cancelado, último movimiento y días sin movimiento, filtros y columnas | Mauricio |
-| 2 | 19.0.2.0.0 | Tablero comercial en Tableros (KPIs, invitaciones por mes y trimestre, ganados/perdidos, venta por mes de cierre) y listados por estatus | Mauricio y Ricardo |
+| 2 | 19.0.2.0.0 | Seguimiento comercial: menú CRM › Reportes › Seguimiento comercial (gráficas y listados) y tableros "Seguimiento comercial" y "Listados comerciales" en Tableros | Mauricio y Ricardo |
 | 3 | 19.0.3.0.0 | Construcción · base: tipo de partida en posiciones presupuestarias, semanas de reporte, proyectos en análisis y captura semanal con foto del real al cerrar | César |
 | 4 | 19.0.4.0.0 | Construcción · cálculos y detalle por proyecto: balance financiero, márgenes, costos por partida, semana vs anterior, apuntes que forman el real | César |
 | 5 | 19.0.5.0.0 | Tablero de Dirección (resumen de todos los proyectos en análisis) | Ricardo y César |
@@ -45,3 +45,36 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
    de su último cambio de etapa (se puede corregir a mano).
 7. Filtro "Sin movimiento más de 90 días": revisar que sean oportunidades
    realmente detenidas.
+
+## Etapa 2 · Qué hace
+
+* **Campos nuevos** en la oportunidad (calculados y guardados):
+  * `report_invitation_status`: Atendido · Sin recompra / Recompra / Inadecuado,
+    o No atendido (no se participó).
+  * `report_close_status`: Ganado o Perdido · Sin recompra / Recompra / Otro.
+    "Ganados en 0's" queda fuera.
+  * `report_open_status` (desde la etapa): Enviada (pipeline abierto) o En pausa.
+* **Menú CRM › Reportes › Seguimiento comercial**:
+  * Gráficas: Invitaciones a cotizar (por mes de creación, apiladas),
+    Ganados y perdidos (por mes de cierre), Venta por mes de cierre (monto).
+  * Listados: Proyectos ganados (agrupados por segmento), perdidos,
+    cancelados, en pausa, pipeline abierto (enviadas), invitaciones por
+    enviar, prospección (por etapa) y oportunidades lentas (+90 días).
+* **Tableros › Dirección y comercial**:
+  * "Seguimiento comercial": indicadores (venta, ganados, % de bateo,
+    efectividad, pipeline enviado, invitaciones), 6 gráficas y el embudo por
+    segmento. Filtros: Periodo y Vendedor.
+  * "Listados comerciales": los 6 listados con los 15 registros principales.
+  * Se generan con `tools/generate_commercial_dashboard.py`; no editar el JSON
+    a mano. Al actualizar el módulo se reemplazan con la versión del código.
+
+## Etapa 2 · Cómo probar
+
+1. Actualizar el módulo (corre la migración 19.0.2.0.0: marca Enviada y En Pausa).
+2. *CRM › Configuración › Etapas*: Enviada y En Pausa con "Listado del pipeline".
+3. *CRM › Reportes › Seguimiento comercial › Invitaciones a cotizar*: cambiar a
+   tabla dinámica y comparar el total por trimestre con el reporte de Mauricio.
+4. *Proyectos ganados*: los totales por segmento deben sumar la venta del año.
+5. *Tableros › Dirección y comercial › Seguimiento comercial*: cambiar el Periodo
+   y el Vendedor; los indicadores y el embudo deben moverse juntos.
+6. Clic en una gráfica: abre el menú del reporte correspondiente.

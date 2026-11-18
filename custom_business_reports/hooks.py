@@ -38,6 +38,12 @@ DEFAULT_STAGE_GROUPS = {
     'ganados en ceros': ('excluido', False),
 }
 
+# Etapa 2: nombre de etapa (normalizado) -> listado del pipeline
+DEFAULT_OPEN_STATUS = {
+    'enviada': 'enviada',
+    'en pausa': 'pausa',
+}
+
 # Palabra en la etiqueta de la calidad (normalizada) -> segmento
 DEFAULT_SEGMENTS = {
     'idoneo': 'sin_recompra',
@@ -65,6 +71,21 @@ def _setup_stage_groups(env):
             _logger.info('Etapa "%s": grupo de reporte %s', stage.name, match[0])
         else:
             _logger.info('Etapa "%s" sin grupo de reporte: configurar a mano', stage.name)
+
+
+def _setup_open_status(env):
+    """Etapa 2: marca las etapas "Enviada" y "En Pausa" para sus listados.
+
+    Se llama al instalar y desde la migración 19.0.2.0.0 (bases que ya tenían
+    la Etapa 1). Solo llena etapas sin configurar.
+    """
+    langs = [code for code, _name in env['res.lang'].get_installed()]
+    for stage in env['crm.stage'].search([('report_open_status', '=', False)]):
+        names = {_normalize(stage.with_context(lang=lang).name) for lang in langs}
+        status = next((DEFAULT_OPEN_STATUS[n] for n in names if n in DEFAULT_OPEN_STATUS), None)
+        if status:
+            stage.report_open_status = status
+            _logger.info('Etapa "%s": listado del pipeline %s', stage.name, status)
 
 
 def _setup_segment_rules(env):
@@ -139,6 +160,7 @@ def _fill_cancel_close_date(env):
 
 def post_init_hook(env):
     _setup_stage_groups(env)
+    _setup_open_status(env)
     _setup_segment_rules(env)
     # Paso 3: por si las reglas ya existían, recalcular segmentos.
     env['crm.lead.segment.rule']._recompute_all_leads()
