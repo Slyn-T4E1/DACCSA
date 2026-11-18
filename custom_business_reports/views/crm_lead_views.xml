@@ -83,11 +83,11 @@
                 <!-- Excluye "Ganados en 0's" de cualquier análisis -->
                 <filter string="Cuenta para tableros" name="ccr_for_dashboards" domain="[('report_stage_group', '!=', 'excluido')]"/>
                 <separator/>
-                <!-- Oportunidades abiertas sin movimiento -->
+                <!-- Oportunidades abiertas sin movimiento (excluye etapas de cierre como Cancelado) -->
                 <filter string="Sin movimiento más de 30 días" name="ccr_idle_30"
-                        domain="[('won_status', '=', 'pending'), ('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'cotizado']), ('report_last_move_date', '&lt;', (context_today() - relativedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                        domain="[('won_status', '=', 'pending'), ('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'cotizado']), ('stage_id.report_close_on_enter', '=', False), ('report_last_move_date', '&lt;', (context_today() - relativedelta(days=30)).strftime('%Y-%m-%d'))]"/>
                 <filter string="Sin movimiento más de 90 días" name="ccr_idle_90"
-                        domain="[('won_status', '=', 'pending'), ('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'cotizado']), ('report_last_move_date', '&lt;', (context_today() - relativedelta(days=90)).strftime('%Y-%m-%d'))]"/>
+                        domain="[('won_status', '=', 'pending'), ('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'cotizado']), ('stage_id.report_close_on_enter', '=', False), ('report_last_move_date', '&lt;', (context_today() - relativedelta(days=90)).strftime('%Y-%m-%d'))]"/>
                 <group>
                     <filter string="Segmento" name="ccr_groupby_segment" context="{'group_by': 'report_segment'}"/>
                     <filter string="Grupo de etapa" name="ccr_groupby_stage_group" context="{'group_by': 'report_stage_group'}"/>

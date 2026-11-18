@@ -9,7 +9,7 @@ Se entrega por etapas (ver README.md). Etapa 1, base comercial en el CRM:
 segmento por calidad del lead, grupo de etapa para reportes, fecha de cierre
 editable y automática en Cancelado, último movimiento y días sin movimiento.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',
