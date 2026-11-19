@@ -158,6 +158,13 @@ class BusinessDashboard(models.Model):
         se usa su valor por omisión.
         """
         self.ensure_one()
+        # El usuario debe poder ver el tablero (reglas por grupo). La
+        # configuración (campos, modelos) se lee como superusuario porque los
+        # usuarios no leen ir.model.fields; los DATOS se consultan con los
+        # permisos del usuario (sudo(False) en cada consulta).
+        self.check_access('read')
+        can_edit = self.env.user.has_group('custom_business_reports.group_dashboard_manager')
+        self = self.sudo()  # noqa: PLW0642
         values = self._resolve_filter_values(filter_values or {})
         kpi_values = {}
         widgets = []
@@ -213,7 +220,7 @@ class BusinessDashboard(models.Model):
             'description': self.description or '',
             'filters': [f._payload(values.get(f.id)) for f in self.filter_ids],
             'widgets': widgets,
-            'can_edit': self.env.user.has_group('custom_business_reports.group_dashboard_manager'),
+            'can_edit': can_edit,
             'currency': {'symbol': self.env.company.currency_id.symbol,
                          'position': self.env.company.currency_id.position},
         }
@@ -290,8 +297,8 @@ class BusinessDashboardFilter(models.Model):
         if self.filter_type == 'many2one':
             if not self.default_domain or not self.comodel_name:
                 return []
-            records = self.env[self.comodel_name].search(safe_eval(self.default_domain),
-                                                         limit=None if self.multiple else 1)
+            records = self.env[self.comodel_name].sudo(False).search(safe_eval(self.default_domain),
+                                                                     limit=None if self.multiple else 1)
             return records.ids
         if self.filter_type == 'selection':
             return [v.strip() for v in (self.default_selection or '').split(',') if v.strip()]
@@ -558,7 +565,7 @@ class BusinessDashboardWidget(models.Model):
 
     def _measure_value(self, measure, filter_values, groupby=()):
         """Valor de una medida (o por grupo) con _read_group."""
-        model = self.env[self.model_name]
+        model = self.env[self.model_name].sudo(False)
         domain = self._full_domain(filter_values, measure.extra_domain, measure.period_field)
         aggregate = measure._aggregate_spec()
         return model._read_group(domain, list(groupby), [aggregate])
@@ -741,7 +748,7 @@ class BusinessDashboardWidget(models.Model):
         return [name.strip() for name in (self.list_fields or '').split(',') if name.strip()]
 
     def _list_payload(self, filter_values):
-        model = self.env[self.model_name]
+        model = self.env[self.model_name].sudo(False)
         names = self._list_field_names() or ['display_name']
         records = model.search_read(self._full_domain(filter_values), names,
                                     order=self.list_order or None, limit=self.limit or 15)
@@ -771,6 +778,8 @@ class BusinessDashboardWidget(models.Model):
     def get_drilldown_action(self, filter_values=None, group_key=None, measure_id=None, group2_key=None):
         """Acción con los registros que forman un valor."""
         self.ensure_one()
+        self.dashboard_id.check_access('read')
+        self = self.sudo()  # noqa: PLW0642 - configuración; la acción abre los datos con los permisos del usuario
         values = self.dashboard_id._resolve_filter_values(filter_values or {})
         measure = self.env['business.dashboard.measure'].browse(measure_id) if measure_id else \
             self.measure_ids.filtered(lambda m: not m.formula)[:1]
@@ -798,6 +807,8 @@ class BusinessDashboardWidget(models.Model):
     def get_record_action(self, res_id):
         """Abre un registro de un listado."""
         self.ensure_one()
+        self.dashboard_id.check_access('read')
+        self = self.sudo()  # noqa: PLW0642
         return {
             'type': 'ir.actions.act_window', 'res_model': self.model_name, 'res_id': res_id,
             'views': [(self.drilldown_view_id.id or False, 'form')], 'target': 'current',

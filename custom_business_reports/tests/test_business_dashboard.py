@@ -159,4 +159,13 @@ class TestBusinessDashboard(TransactionCase):
         self.assertIn('Seguimiento comercial', names)
         self.assertNotIn('Reporte semanal Dirección', names)
         dashboard = self.env.ref('custom_business_reports.dashboard_commercial').with_user(salesman)
-        self.assertFalse(dashboard.get_dashboard_data({})['can_edit'])
+        data = dashboard.get_dashboard_data({})
+        self.assertFalse(data['can_edit'])
+        self.assertFalse([(w['title'], w['error']) for w in data['widgets'] if w['error']],
+                         'Un vendedor calcula el tablero sin errores de permisos')
+        widget = dashboard.widget_ids.filtered(lambda w: w.widget_type == 'table')[:1]
+        self.assertTrue(widget.get_drilldown_action({}, group_key='recompra'))
+        # Un tablero que no le corresponde no se puede calcular
+        from odoo.exceptions import AccessError
+        with self.assertRaises(AccessError):
+            self.env.ref('custom_business_reports.dashboard_week_report').with_user(salesman).get_dashboard_data({})

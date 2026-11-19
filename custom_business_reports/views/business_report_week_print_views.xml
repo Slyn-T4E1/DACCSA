@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Etapa 7 · Asistente para generar el PDF del Reporte Semanal de Dirección. -->
+<odoo>
+    <record id="business_report_week_print_view_form" model="ir.ui.view">
+        <field name="name">business.report.week.print.form</field>
+        <field name="model">business.report.week.print</field>
+        <field name="arch" type="xml">
+            <form string="Reporte Semanal de Dirección">
+                <div class="alert alert-warning" role="alert" invisible="week_state == 'closed'">
+                    La semana aún está en captura: se genera una <b>vista previa</b> con marca de agua y no se guarda.
+                    Al cerrar la semana, el PDF queda guardado en la semana.
+                </div>
+                <group>
+                    <group>
+                        <field name="week_id"/>
+                        <field name="week_state" invisible="1"/>
+                        <field name="include_summary"/>
+                        <field name="include_projects"/>
+                    </group>
+                </group>
+                <field name="project_line_ids" widget="many2many_tags" options="{'no_create': True}"
+                       placeholder="Todos los proyectos de la semana"/>
+                <footer>
+                    <button name="action_print" type="object" string="Generar PDF" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

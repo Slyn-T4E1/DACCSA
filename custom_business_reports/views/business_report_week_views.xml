@@ -49,6 +49,11 @@
                             invisible="state == 'draft'"/>
                     <button name="action_open_dashboard" type="object" string="Tablero" icon="fa-tachometer"
                             invisible="state == 'draft'"/>
+                    <!-- Etapa 7: PDF -->
+                    <button name="action_open_print_wizard" type="object" string="Reporte PDF" icon="fa-file-pdf-o"
+                            invisible="state == 'draft'"/>
+                    <button name="action_send_direction_report" type="object" string="Enviar a Dirección" icon="fa-envelope"
+                            invisible="state != 'closed'"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -69,6 +74,7 @@
                             <field name="estimate_total"/>
                             <field name="operating_margin_total"/>
                             <field name="real_refresh_date"/>
+                            <field name="report_attachment_id" invisible="not report_attachment_id"/>
                         </group>
                     </group>
                     <notebook>

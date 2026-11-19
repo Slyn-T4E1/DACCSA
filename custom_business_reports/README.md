@@ -15,7 +15,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | 4 | 19.0.4.0.0 | Construcción · cálculos y detalle por proyecto: valor contrato, estimado autorizado y facturado desde Odoo, balance financiero, márgenes, costos por partida, semana vs anterior, histórico y apuntes | César |
 | 5 | 19.0.5.0.0 | Tablero de Dirección: semana vigente, tablero en Tableros, pestaña Resumen por semana, gráficas de costos y tendencia, alerta de margen bajo | Ricardo y César |
 | 6 | 19.0.6.0.0 | App "Tableros DACSA": tableros en JavaScript configurables (filtros, dominios, medidas y fórmulas); reemplaza los tableros de la app Tableros | Dirección, Mauricio |
-| 7 | 19.0.7.0.0 | PDF Reporte Semanal de Dirección y ajustes finales | Dirección |
+| 7 | 19.0.7.0.0 | PDF Reporte Semanal de Dirección (resumen + sección por proyecto), guardado en la semana y envío por correo | Dirección |
 
 ## Etapa 1 · Qué hace
 
@@ -216,3 +216,33 @@ Ya no se usa la app Tableros de Odoo (hoja de cálculo): sus tableros "Seguimien
 3. Con un administrador: lápiz en un indicador, cambiar el dominio o la fórmula, guardar y ver el cambio.
 4. Crear un tablero nuevo desde Configuración con un filtro y un par de elementos.
 5. Entrar con un vendedor: solo ve los tableros comerciales y no ve los botones de configuración.
+
+## Etapa 7 · Qué hace
+
+PDF **Reporte Semanal de Dirección** en hojas 16:9 (como el PowerPoint), con el pie "Propiedad de DACCSA – Uso Restringido · CON-FO-17 Rev.00".
+
+En la semana: botón **Reporte PDF** (asistente) y, en semanas cerradas, **Enviar a Dirección** (correo con el PDF adjunto). También desde Imprimir › Reporte Semanal de Dirección.
+
+Asistente: Resumen de Dirección (sí/no), una sección por proyecto (sí/no) y qué proyectos llevar.
+
+Contenido:
+
+1. Portada (logo de la compañía, fecha de corte).
+2. Indicadores (costo planeado, real, desviación, vs semana anterior, venta semanal, margen operativo) y proyectos en análisis agrupados por cliente.
+3. Balance de costos por partida (gráfica + tabla con diferencias vs semana anterior).
+4. Indicadores de costos y venta (últimas 6 semanas).
+5. Margen operativo al momento – proyectos (rojo bajo la alerta de margen).
+6. Por proyecto: portada, balance financiero (estimaciones y margen NeoData por semana), costos (planeado vs real por partida + tendencia) y semana (margen semanal y diferencia de costos).
+
+Semana cerrada: el PDF se guarda en la semana (campo "Último PDF" y en el historial). Semana en captura: vista previa con marca de agua, no se guarda.
+
+Pendiente: lámina de Flujo (falta definir con DACSA qué comparan las dos columnas).
+
+Ajuste de permisos de la Etapa 6 incluido: los usuarios que no son administradores ya calculan los tableros (la configuración se lee como superusuario; los datos con los permisos del usuario).
+
+## Etapa 7 · Cómo probar
+
+1. Semana en captura › Reporte PDF › Generar PDF: sale la vista previa con marca de agua.
+2. Cerrar la semana › Reporte PDF: el PDF se descarga y queda adjunto en la semana.
+3. Enviar a Dirección: se abre el correo con el PDF adjunto.
+4. Revisar que cada hoja ocupe la página completa y que las cifras coincidan con la pestaña Resumen y el tablero.

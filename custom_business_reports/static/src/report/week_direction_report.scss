@@ -1,0 +1,107 @@
+// Etapa 7 · PDF Reporte Semanal de Dirección (hojas 1280 x 720 px = 16:9).
+// wkhtmltopdf usa un WebKit antiguo: sin grid ni flex, se acomoda con tablas.
+.ccr-article {
+    margin: 0;
+    padding: 0;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #1F2937;
+}
+// Cada hoja mide 1280 px (= ancho de la página de 339 mm a 96 dpi). El cuerpo
+// de los reportes de Odoo es un "container" de Bootstrap con ancho máximo;
+// la hoja se centra respecto a la página para no quedar recortada.
+.ccr-slide {
+    position: relative;
+    left: 50%;
+    margin-left: -640px;
+    width: 1280px;
+    height: 712px;
+    padding: 36px 50px 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: #FFFFFF;
+    page-break-after: always;
+    page-break-inside: avoid;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #1F2937;
+}
+.ccr-slide:last-child { page-break-after: auto; }
+
+.ccr-title {
+    font-size: 30px;
+    font-weight: bold;
+    color: #1F3A93;
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+    border-bottom: 4px solid #2F5BEA;
+}
+.ccr-subtitle { font-size: 18px; font-weight: bold; color: #1F3A93; margin: 14px 0 8px; }
+.ccr-note { font-size: 13px; color: #6B7280; margin-top: 8px; }
+.ccr-chart { margin-bottom: 8px; }
+
+// Pie de cada hoja
+.ccr-foot {
+    position: absolute;
+    left: 50px;
+    right: 50px;
+    bottom: 14px;
+    font-size: 12px;
+    color: #6B7280;
+    border-top: 1px solid #E5E7EB;
+    padding-top: 6px;
+}
+.ccr-foot-right { float: right; }
+.ccr-watermark {
+    position: absolute;
+    top: 300px;
+    left: 0;
+    width: 1280px;
+    text-align: center;
+    font-size: 54px;
+    font-weight: bold;
+    color: rgba(220, 38, 38, 0.18);
+    -webkit-transform: rotate(-12deg);
+    transform: rotate(-12deg);
+}
+
+// Portadas
+.ccr-cover { background: #2F5BEA; color: #FFFFFF; padding: 180px 90px 0; }
+.ccr-cover-project { background: #1F2937; }
+.ccr-cover .ccr-foot { color: rgba(255, 255, 255, 0.7); border-top-color: rgba(255, 255, 255, 0.3); }
+.ccr-cover-logo { position: absolute; top: 50px; left: 90px; max-height: 80px; max-width: 260px; background: #FFFFFF; padding: 8px; border-radius: 6px; }
+.ccr-cover-title { font-size: 60px; font-weight: bold; line-height: 1.1; }
+.ccr-cover-sub { font-size: 30px; margin-top: 12px; color: rgba(255, 255, 255, 0.85); }
+.ccr-cover-date { font-size: 26px; margin-top: 40px; }
+.ccr-cover-state { font-size: 20px; margin-top: 16px; color: #FDE68A; }
+
+// Indicadores
+.ccr-kpis { width: 100%; border-collapse: separate; border-spacing: 12px 0; margin: 0 -12px 10px; }
+.ccr-kpi { width: 16.6%; vertical-align: top; padding: 14px 16px; border-radius: 10px; background: #F3F4F6; border: 1px solid #E5E7EB; }
+.ccr-kpi-l { font-size: 14px; font-weight: bold; color: #374151; }
+.ccr-kpi-v { font-size: 30px; font-weight: bold; margin: 6px 0 4px; }
+.ccr-kpi-n { font-size: 12px; color: #4B5563; }
+.ccr-blue { background: #EFF6FF; }
+.ccr-orange { background: #FFF7ED; }
+.ccr-good { background: #F0FDF4; .ccr-kpi-v { color: #15803D; } }
+.ccr-bad { background: #FEF2F2; .ccr-kpi-v { color: #B91C1C; } }
+
+// Clientes y proyectos
+.ccr-clients { width: 100%; border-collapse: separate; border-spacing: 14px 0; margin: 0 -14px; }
+.ccr-clients td { vertical-align: top; background: #F9FAFB; border-left: 5px solid #2F5BEA; padding: 12px 16px; }
+.ccr-client { font-size: 20px; font-weight: bold; color: #1F3A93; margin-bottom: 6px; }
+.ccr-client-project { font-size: 16px; margin: 3px 0; }
+
+// Tablas
+.ccr-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.ccr-table th { background: #2F5BEA; color: #FFFFFF; font-weight: bold; padding: 7px 10px; text-align: right; }
+.ccr-table th:first-child { text-align: left; }
+.ccr-table td { padding: 6px 10px; border-bottom: 1px solid #E5E7EB; text-align: right; white-space: nowrap; }
+.ccr-table td.ccr-left { text-align: left; }
+.ccr-table .ccr-total td { font-weight: bold; background: #F3F4F6; }
+.ccr-table-small { font-size: 14px; }
+.ccr-table-narrow { width: 70%; }
+.ccr-cell-good { background: #DCFCE7; color: #15803D; font-weight: bold; }
+.ccr-cell-bad { background: #FEE2E2; color: #B91C1C; font-weight: bold; }
+
+// Dos columnas
+.ccr-two { width: 100%; border-collapse: collapse; }
+.ccr-two > tbody > tr > td, .ccr-two > tr > td { width: 50%; vertical-align: top; padding-right: 20px; }

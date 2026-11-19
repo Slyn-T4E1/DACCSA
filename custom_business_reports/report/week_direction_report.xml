@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Etapa 7 · PDF "Reporte Semanal de Dirección" (hojas 16:9 como el PowerPoint).
+    Datos: report.custom_business_reports.report_week_direction (Python).
+-->
+<odoo>
+    <!-- Hoja 16:9 (13.33 x 7.5 pulgadas, igual que una diapositiva) -->
+    <record id="paperformat_week_direction" model="report.paperformat">
+        <field name="name">Reporte Semanal Dirección 16:9</field>
+        <field name="format">custom</field>
+        <field name="page_width">339</field>
+        <field name="page_height">191</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">0</field>
+        <field name="margin_bottom">0</field>
+        <field name="margin_left">0</field>
+        <field name="margin_right">0</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="disable_shrinking" eval="True"/>
+        <field name="dpi">96</field>
+    </record>
+
+    <record id="action_report_week_direction" model="ir.actions.report">
+        <field name="name">Reporte Semanal de Dirección</field>
+        <field name="model">business.report.week</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_business_reports.report_week_direction</field>
+        <field name="report_file">custom_business_reports.report_week_direction</field>
+        <field name="print_report_name">'Reporte semanal Direccion %s' % (object.date and object.date.strftime('%Y-%m-%d') or '')</field>
+        <field name="paperformat_id" ref="paperformat_week_direction"/>
+        <field name="binding_model_id" ref="model_business_report_week"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- Pie y marca de agua de cada hoja -->
+    <template id="report_week_direction_slide_end">
+        <div class="ccr-foot"><t t-esc="footer"/><span class="ccr-foot-right" t-esc="r['long_date']"/></div>
+        <div t-if="r['preview']" class="ccr-watermark">VISTA PREVIA · SEMANA EN CAPTURA</div>
+    </template>
+
+    <template id="report_week_direction">
+        <t t-set="body_classname" t-value="'ccr-body'"/>
+        <t t-call="web.report_layout">
+            <t t-foreach="reports" t-as="r">
+              <!-- "article": Odoo arma cada semana con el diseño mínimo de reportes (estilos y acentos) -->
+              <div class="article ccr-article" t-att-data-oe-model="'business.report.week'" t-att-data-oe-id="r['week'].id">
+                <t t-set="k" t-value="r['kpis']"/>
+
+                <!-- ====================== RESUMEN ====================== -->
+                <t t-if="r['include_summary']">
+                    <!-- 1. Portada -->
+                    <div class="ccr-slide ccr-cover">
+                        <img t-if="r['company'].logo" class="ccr-cover-logo" t-att-src="image_data_uri(r['company'].logo)"/>
+                        <div class="ccr-cover-title">Reporte Semanal Dirección</div>
+                        <div class="ccr-cover-sub">Proyectos en curso</div>
+                        <div class="ccr-cover-date" t-esc="r['long_date']"/>
+                        <div class="ccr-cover-state" t-if="r['preview']">Vista previa · la semana aún está en captura</div>
+                        <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                    </div>
+
+                    <!-- 2. Indicadores y proyectos -->
+                    <div class="ccr-slide">
+                        <div class="ccr-title">Indicadores</div>
+                        <table class="ccr-kpis">
+                            <tr>
+                                <td class="ccr-kpi ccr-blue"><div class="ccr-kpi-l">Costo planeado</div><div class="ccr-kpi-v" t-esc="short(k['planned'])"/><div class="ccr-kpi-n">NeoData, Σ partidas</div></td>
+                                <td class="ccr-kpi"><div class="ccr-kpi-l">Costo real</div><div class="ccr-kpi-v" t-esc="short(k['real'])"/><div class="ccr-kpi-n">Odoo, a la fecha de corte</div></td>
+                                <td t-attf-class="ccr-kpi {{ 'ccr-good' if k['deviation'] &gt;= 0 else 'ccr-bad' }}"><div class="ccr-kpi-l">Desviación acumulada</div><div class="ccr-kpi-v" t-esc="short(k['deviation'])"/><div class="ccr-kpi-n"><t t-esc="pct(k['deviation_pct'])"/> de optimización</div></td>
+                                <td t-attf-class="ccr-kpi {{ 'ccr-good' if k['deviation_delta'] &gt;= 0 else 'ccr-bad' }}"><div class="ccr-kpi-l">Vs semana anterior</div><div class="ccr-kpi-v" t-esc="short(k['deviation_delta'])"/><div class="ccr-kpi-n">cambio de la desviación</div></td>
+                                <td class="ccr-kpi ccr-orange"><div class="ccr-kpi-l">Venta semanal</div><div class="ccr-kpi-v" t-esc="short(k['sale_week'])"/><div class="ccr-kpi-n">Σ avance NeoData</div></td>
+                                <td t-attf-class="ccr-kpi {{ 'ccr-good' if k['margin_pct'] &gt;= k['alert'] else 'ccr-bad' }}"><div class="ccr-kpi-l">Margen operativo</div><div class="ccr-kpi-v" t-esc="pct(k['margin_pct'])"/><div class="ccr-kpi-n"><t t-esc="short(k['margin'])"/> sobre venta real</div></td>
+                            </tr>
+                        </table>
+                        <div class="ccr-subtitle">Proyectos en análisis</div>
+                        <table class="ccr-clients">
+                            <tr>
+                                <t t-foreach="r['clients']" t-as="client">
+                                    <td>
+                                        <div class="ccr-client" t-esc="client[0]"/>
+                                        <t t-foreach="client[1]" t-as="line">
+                                            <div class="ccr-client-project" t-esc="line.analytic_account_id.name"/>
+                                        </t>
+                                    </td>
+                                </t>
+                            </tr>
+                        </table>
+                        <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                    </div>
+
+                    <!-- 3. Balance de costos por partida -->
+                    <div class="ccr-slide">
+                        <div class="ccr-title">Balance de costos por partida</div>
+                        <div class="ccr-chart" t-out="r['partida_chart']"/>
+                        <table class="ccr-table">
+                            <thead><tr><th>Posición</th><th>Planeado</th><th>Real</th><th>Diferencia</th><th>%</th><th>Δ planeado vs sem. ant.</th><th>Δ real vs sem. ant.</th></tr></thead>
+                            <tbody>
+                                <t t-foreach="r['partidas']" t-as="p">
+                                    <tr>
+                                        <td class="ccr-left" t-esc="p['label']"/>
+                                        <td t-esc="money(p['planned'])"/>
+                                        <td t-esc="money(p['real'])"/>
+                                        <td t-attf-class="{{ 'ccr-cell-good' if p['deviation'] &gt;= 0 else 'ccr-cell-bad' }}" t-esc="money(p['deviation'])"/>
+                                        <td t-attf-class="{{ 'ccr-cell-good' if p['deviation'] &gt;= 0 else 'ccr-cell-bad' }}" t-esc="pct(p['deviation_pct'])"/>
+                                        <td t-esc="money(p['planned_delta'])"/>
+                                        <td t-esc="money(p['real_delta'])"/>
+                                    </tr>
+                                </t>
+                                <tr class="ccr-total">
+                                    <td class="ccr-left">Sumatoria</td>
+                                    <td t-esc="money(k['planned'])"/>
+                                    <td t-esc="money(k['real'])"/>
+                                    <td t-esc="money(k['deviation'])"/>
+                                    <td t-esc="pct(k['deviation_pct'])"/>
+                                    <td t-esc="money(k['planned_delta'])"/>
+                                    <td t-esc="money(k['real_delta'])"/>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                    </div>
+
+                    <!-- 4. Indicadores de costos y venta -->
+                    <div class="ccr-slide">
+                        <div class="ccr-title">Indicadores de costos y venta</div>
+                        <div class="ccr-chart" t-out="r['trend']['chart']"/>
+                        <table class="ccr-table ccr-table-narrow">
+                            <thead><tr><th>Semana (corte)</th><th>Balance de costos (planeado − real)</th><th>Venta semanal (avance NeoData)</th></tr></thead>
+                            <tbody>
+                                <t t-foreach="r['trend']['rows']" t-as="row">
+                                    <tr><td class="ccr-left" t-esc="row['label']"/><td t-esc="money(row['balance'])"/><td t-esc="money(row['sale'])"/></tr>
+                                </t>
+                            </tbody>
+                        </table>
+                        <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                    </div>
+
+                    <!-- 5. Margen operativo al momento – proyectos -->
+                    <div class="ccr-slide">
+                        <div class="ccr-title">Margen operativo al momento – proyectos</div>
+                        <table class="ccr-table">
+                            <thead><tr><th>Proyecto</th><th>Venta real (estimado autorizado)</th><th>Costo real</th><th>Margen operativo</th><th>% margen</th><th>% margen plan</th></tr></thead>
+                            <tbody>
+                                <t t-foreach="r['lines']" t-as="line">
+                                    <tr>
+                                        <td class="ccr-left" t-esc="line.analytic_account_id.display_name"/>
+                                        <td t-esc="money(line.estimate_amount)"/>
+                                        <td t-esc="money(line.real_total)"/>
+                                        <td t-esc="money(line.operating_margin)"/>
+                                        <td t-attf-class="{{ 'ccr-cell-good' if line.operating_margin_pct &gt;= k['alert'] else 'ccr-cell-bad' }}" t-esc="pct(line.operating_margin_pct, 3)"/>
+                                        <td t-esc="pct(line.planned_margin_pct) if line.planned_margin_pct else '—'"/>
+                                    </tr>
+                                </t>
+                                <tr class="ccr-total">
+                                    <td class="ccr-left">Resultado global</td>
+                                    <td t-esc="money(k['estimate'])"/>
+                                    <td t-esc="money(k['cost'])"/>
+                                    <td t-esc="money(k['margin'])"/>
+                                    <td t-esc="pct(k['margin_pct'], 3)"/>
+                                    <td/>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="ccr-note">Rojo: margen menor a <t t-esc="pct(k['alert'], 0)"/>. Venta real = estimado autorizado (posición de Ventas sin anticipos de clientes).</div>
+                        <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                    </div>
+                </t>
+
+                <!-- ====================== POR PROYECTO ====================== -->
+                <t t-if="r['include_projects']">
+                    <t t-foreach="r['projects']" t-as="pr">
+                        <t t-set="line" t-value="pr['line']"/>
+                        <!-- Portada del proyecto -->
+                        <div class="ccr-slide ccr-cover ccr-cover-project">
+                            <div class="ccr-cover-sub" t-esc="pr['client']"/>
+                            <div class="ccr-cover-title" t-esc="line.analytic_account_id.name"/>
+                            <div class="ccr-cover-date" t-esc="r['long_date']"/>
+                            <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                        </div>
+
+                        <!-- Balance financiero -->
+                        <div class="ccr-slide">
+                            <div class="ccr-title"><t t-esc="line.analytic_account_id.name"/> – Balance financiero</div>
+                            <table class="ccr-two">
+                                <tr>
+                                    <td>
+                                        <div class="ccr-subtitle">Estimaciones</div>
+                                        <div t-out="pr['finance_chart']"/>
+                                        <div class="ccr-note">Estimado autorizado = posición de Ventas sin anticipos. Facturado = facturas de cliente sin impuestos ni anticipos.</div>
+                                    </td>
+                                    <td>
+                                        <div class="ccr-subtitle">Margen operativo NeoData por semana</div>
+                                        <div t-out="pr['margin_chart']"/>
+                                        <table class="ccr-table ccr-table-small">
+                                            <tr><td class="ccr-left">Margen NeoData</td><td t-esc="money(line.neodata_margin)"/><td t-esc="pct(line.neodata_margin_pct)"/></tr>
+                                            <tr><td class="ccr-left">Margen operativo al momento</td><td t-esc="money(line.operating_margin)"/><td t-esc="pct(line.operating_margin_pct)"/></tr>
+                                            <tr><td class="ccr-left">% margen plan</td><td colspan="2" t-esc="pct(line.planned_margin_pct) if line.planned_margin_pct else 'Sin capturar'"/></tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                        </div>
+
+                        <!-- Costos -->
+                        <div class="ccr-slide">
+                            <div class="ccr-title"><t t-esc="line.analytic_account_id.name"/> – Costos</div>
+                            <table class="ccr-two">
+                                <tr>
+                                    <td>
+                                        <div t-out="pr['cost_chart']"/>
+                                    </td>
+                                    <td>
+                                        <div class="ccr-subtitle">Tendencia semanal</div>
+                                        <table class="ccr-table ccr-table-small">
+                                            <thead><tr><th>Semana</th><th>Planeado</th><th>Real</th><th>Desviación</th></tr></thead>
+                                            <tbody>
+                                                <t t-foreach="pr['history']" t-as="h">
+                                                    <tr><td class="ccr-left" t-esc="h.week_date.strftime('%d/%m/%Y')"/><td t-esc="short(h.planned_total)"/><td t-esc="short(h.real_total)"/>
+                                                        <td t-attf-class="{{ 'ccr-cell-good' if h.deviation &gt;= 0 else 'ccr-cell-bad' }}" t-esc="short(h.deviation)"/></tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table class="ccr-table">
+                                <thead><tr><th>Posición</th><th>Planeado</th><th>Real</th><th>Desviación</th><th>%</th></tr></thead>
+                                <tbody>
+                                    <t t-foreach="pr['partidas']" t-as="p">
+                                        <tr>
+                                            <td class="ccr-left" t-esc="pr['labels'].get(p.partida, '')"/>
+                                            <td t-esc="money(p.planned_amount)"/>
+                                            <td t-esc="money(p.real_amount)"/>
+                                            <td t-attf-class="{{ 'ccr-cell-good' if p.deviation &gt;= 0 else 'ccr-cell-bad' }}" t-esc="money(p.deviation)"/>
+                                            <td t-attf-class="{{ 'ccr-cell-good' if p.deviation &gt;= 0 else 'ccr-cell-bad' }}" t-esc="pct(p.deviation_pct)"/>
+                                        </tr>
+                                    </t>
+                                    <tr class="ccr-total">
+                                        <td class="ccr-left">Sumatoria</td>
+                                        <td t-esc="money(line.planned_total)"/>
+                                        <td t-esc="money(line.real_total)"/>
+                                        <td t-esc="money(line.deviation)"/>
+                                        <td t-esc="pct(line.deviation / line.planned_total if line.planned_total else 0)"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                        </div>
+
+                        <!-- Semana (costos 2) -->
+                        <div class="ccr-slide">
+                            <div class="ccr-title"><t t-esc="line.analytic_account_id.name"/> – Semana</div>
+                            <table class="ccr-two">
+                                <tr>
+                                    <td>
+                                        <div class="ccr-subtitle">Margen semanal</div>
+                                        <table class="ccr-table ccr-table-small">
+                                            <tr><td class="ccr-left">Venta NeoData sem. actual</td><td t-esc="money(line.neodata_sale)"/></tr>
+                                            <tr><td class="ccr-left">Venta NeoData sem. anterior</td><td t-esc="money(line.neodata_sale_prev)"/></tr>
+                                            <tr><td class="ccr-left">Avance semanal NeoData</td><td t-esc="money(line.neodata_advance)"/></tr>
+                                            <tr><td class="ccr-left">Costo de la semana</td><td t-esc="money(line.week_cost)"/></tr>
+                                            <tr t-attf-class="ccr-total {{ 'ccr-cell-good' if line.week_difference &gt;= 0 else 'ccr-cell-bad' }}"><td class="ccr-left">Diferencia</td><td t-esc="money(line.week_difference)"/></tr>
+                                        </table>
+                                    </td>
+                                    <td>
+                                        <div class="ccr-subtitle">Diferencia de costos de la semana</div>
+                                        <table class="ccr-table ccr-table-small">
+                                            <thead><tr><th>Posición</th><th>Δ planeado</th><th>Δ real</th><th>Diferencia</th></tr></thead>
+                                            <tbody>
+                                                <t t-foreach="pr['partidas']" t-as="p">
+                                                    <tr><td class="ccr-left" t-esc="pr['labels'].get(p.partida, '')"/><td t-esc="money(p.planned_delta)"/><td t-esc="money(p.real_delta)"/>
+                                                        <td t-attf-class="{{ 'ccr-cell-good' if p.week_difference &gt;= 0 else 'ccr-cell-bad' }}" t-esc="money(p.week_difference)"/></tr>
+                                                </t>
+                                                <tr class="ccr-total"><td class="ccr-left">Sumatoria</td>
+                                                    <td t-esc="money(sum(pr['partidas'].mapped('planned_delta')))"/>
+                                                    <td t-esc="money(sum(pr['partidas'].mapped('real_delta')))"/>
+                                                    <td t-esc="money(sum(pr['partidas'].mapped('week_difference')))"/></tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div t-out="pr['delta_chart']"/>
+                            <div class="ccr-note" t-if="line.note">Comentario: <t t-esc="line.note"/></div>
+                            <t t-call="custom_business_reports.report_week_direction_slide_end"/>
+                        </div>
+                    </t>
+                </t>
+              </div>
+            </t>
+        </t>
+    </template>
+</odoo>

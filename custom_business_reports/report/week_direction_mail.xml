@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Etapa 7 · Correo para enviar el Reporte Semanal de Dirección (adjunta el PDF). -->
+<odoo>
+    <record id="mail_template_week_direction" model="mail.template">
+        <field name="name">Reporte Semanal de Dirección</field>
+        <field name="model_id" ref="model_business_report_week"/>
+        <field name="subject">Reporte Semanal de Dirección – {{ object.name }}</field>
+        <field name="report_template_ids" eval="[(4, ref('custom_business_reports.action_report_week_direction'))]"/>
+        <field name="body_html" type="html">
+            <div style="font-family: Arial, sans-serif; font-size: 14px;">
+                <p>Buen día:</p>
+                <p>Se adjunta el Reporte Semanal de Dirección de la <t t-out="object.name or ''"/> (proyectos en curso).</p>
+                <p>Saludos.</p>
+            </div>
+        </field>
+        <field name="auto_delete" eval="False"/>
+    </record>
+</odoo>

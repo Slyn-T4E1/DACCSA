@@ -2,3 +2,4 @@
 from . import test_crm_reports
 from . import test_week_report
 from . import test_business_dashboard
+from . import test_week_pdf
