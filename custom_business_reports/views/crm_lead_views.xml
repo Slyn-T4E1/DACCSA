@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oportunidades: pestaña de seguimiento, columnas y filtros para reportes. -->
+<odoo>
+    <!-- Formulario: pestaña "Seguimiento y reportes" al final del cuaderno.
+         Se agrega como pestaña nueva para no chocar con los cambios de Studio. -->
+    <record id="crm_lead_view_form_ccr" model="ir.ui.view">
+        <field name="name">crm.lead.form.custom_business_reports</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page name="ccr_reports" string="Seguimiento y reportes" invisible="type == 'lead'">
+                    <!-- Campos técnicos usados en las condiciones de la vista -->
+                    <field name="won_status" invisible="1"/>
+                    <field name="report_stage_close_on_enter" invisible="1"/>
+                    <group>
+                        <group string="Clasificación para reportes">
+                            <field name="report_segment" widget="badge"
+                                   decoration-info="report_segment == 'sin_recompra'"
+                                   decoration-warning="report_segment == 'recompra'"
+                                   decoration-muted="report_segment == 'inadecuado'"/>
+                            <field name="report_stage_group"/>
+                        </group>
+                        <group string="Ciclo de vida">
+                            <field name="create_date" string="Creada el" readonly="1"/>
+                            <!-- Editable solo cuando la oportunidad ya cerró
+                                 (ganada, perdida o en etapa de cierre como Cancelado). -->
+                            <field name="date_closed"
+                                   readonly="won_status == 'pending' and not report_stage_close_on_enter"/>
+                            <field name="day_close" string="Días creación → cierre" invisible="not date_closed"/>
+                            <field name="report_last_move_date"/>
+                            <field name="report_idle_days" invisible="not report_idle_level"/>
+                            <field name="report_idle_level" widget="badge" invisible="not report_idle_level"
+                                   decoration-success="report_idle_level == 'ok'"
+                                   decoration-warning="report_idle_level == 'warning'"
+                                   decoration-danger="report_idle_level == 'late'"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Lista de oportunidades: columnas opcionales para revisar y exportar -->
+    <record id="crm_case_tree_view_oppor_ccr" model="ir.ui.view">
+        <field name="name">crm.lead.list.opportunity.custom_business_reports</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_tree_view_oppor"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <field name="report_segment" optional="show"/>
+                <field name="report_stage_group" optional="hide"/>
+                <field name="date_closed" optional="hide"/>
+                <field name="report_last_move_date" optional="hide"/>
+                <field name="report_idle_days" optional="hide"/>
+                <field name="report_idle_level" widget="badge" optional="hide"
+                       decoration-success="report_idle_level == 'ok'"
+                       decoration-warning="report_idle_level == 'warning'"
+                       decoration-danger="report_idle_level == 'late'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Búsqueda: filtros por segmento, grupo de etapa y oportunidades lentas -->
+    <record id="view_crm_case_opportunities_filter_ccr" model="ir.ui.view">
+        <field name="name">crm.lead.search.opportunity.custom_business_reports</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.view_crm_case_opportunities_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <separator/>
+                <!-- Segmento (desde Calidad del lead) -->
+                <filter string="Sin recompra" name="ccr_seg_sin_recompra" domain="[('report_segment', '=', 'sin_recompra')]"/>
+                <filter string="Recompra" name="ccr_seg_recompra" domain="[('report_segment', '=', 'recompra')]"/>
+                <filter string="Inadecuado" name="ccr_seg_inadecuado" domain="[('report_segment', '=', 'inadecuado')]"/>
+                <separator/>
+                <!-- Grupo de etapa -->
+                <filter string="Prospección" name="ccr_grp_prospeccion" domain="[('report_stage_group', '=', 'prospeccion')]"/>
+                <filter string="Por enviar" name="ccr_grp_por_enviar" domain="[('report_stage_group', '=', 'por_enviar')]"/>
+                <filter string="Cotizados" name="ccr_grp_cotizado" domain="[('report_stage_group', '=', 'cotizado')]"/>
+                <filter string="Declinados" name="ccr_grp_declinado" domain="[('report_stage_group', '=', 'declinado')]"/>
+                <separator/>
+                <!-- Excluye "Ganados en 0's" de cualquier análisis -->
+                <filter string="Cuenta para tableros" name="ccr_for_dashboards" domain="[('report_stage_group', '!=', 'excluido')]"/>
+                <separator/>
+                <!-- Oportunidades abiertas sin movimiento (excluye etapas de cierre como Cancelado) -->
+                <filter string="Sin movimiento más de 30 días" name="ccr_idle_30"
+                        domain="[('won_status', '=', 'pending'), ('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'cotizado']), ('stage_id.report_close_on_enter', '=', False), ('report_last_move_date', '&lt;', (context_today() - relativedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Sin movimiento más de 90 días" name="ccr_idle_90"
+                        domain="[('won_status', '=', 'pending'), ('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'cotizado']), ('stage_id.report_close_on_enter', '=', False), ('report_last_move_date', '&lt;', (context_today() - relativedelta(days=90)).strftime('%Y-%m-%d'))]"/>
+                <group>
+                    <filter string="Segmento" name="ccr_groupby_segment" context="{'group_by': 'report_segment'}"/>
+                    <filter string="Grupo de etapa" name="ccr_groupby_stage_group" context="{'group_by': 'report_stage_group'}"/>
+                    <filter string="Mes de cierre" name="ccr_groupby_close_month" context="{'group_by': 'date_closed:month'}"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

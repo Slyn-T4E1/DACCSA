@@ -1,0 +1,119 @@
+// Tableros DACSA (Etapa 6): estilos de la acción cliente.
+.o_business_dashboard {
+    .o_bd_content {
+        display: flex;
+        align-items: flex-start;
+        overflow: auto;
+        background-color: $o-gray-100;
+    }
+
+    // ---------------- Menú de tableros ----------------
+    .o_bd_sidebar {
+        flex: 0 0 220px;
+        position: sticky;
+        top: 0;
+        min-height: 100%;
+        padding: 16px 12px;
+        background-color: $o-view-background-color;
+        border-right: 1px solid $o-gray-300;
+    }
+    .o_bd_sidebar_group {
+        margin: 12px 0 4px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: $o-gray-600;
+    }
+    .o_bd_sidebar_item {
+        display: block;
+        padding: 6px 10px;
+        border-radius: 6px;
+        color: $o-gray-800;
+        text-decoration: none;
+        &:hover { background-color: $o-gray-200; }
+        &.active { background-color: rgba($o-action, 0.12); color: $o-action; font-weight: 600; }
+    }
+    .o_bd_sidebar_open { position: sticky; top: 8px; margin: 8px 0 0 8px; }
+
+    // ---------------- Contenido ----------------
+    .o_bd_main { flex: 1 1 auto; min-width: 0; padding: 16px 20px 32px; }
+    .o_bd_header { margin-bottom: 12px; }
+
+    .o_bd_filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        background-color: $o-view-background-color;
+        border: 1px solid $o-gray-300;
+        border-radius: 10px;
+    }
+    .o_bd_filter { display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
+    .o_bd_filter_date { min-width: 430px; }
+    .o_bd_filter_label { font-size: 0.75rem; font-weight: 600; color: $o-gray-600; text-transform: uppercase; }
+
+    // ---------------- Cuadrícula de elementos ----------------
+    .o_bd_grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 14px;
+    }
+    @for $i from 1 through 12 {
+        .o_bd_col_#{$i} { grid-column: span #{$i}; }
+    }
+    @include media-breakpoint-down(lg) {
+        .o_bd_grid > .o_bd_widget { grid-column: span 12; }
+    }
+
+    .o_bd_widget {
+        position: relative;
+        min-width: 0;
+        padding: 14px 16px;
+        background-color: $o-view-background-color;
+        border: 1px solid $o-gray-300;
+        border-radius: 10px;
+    }
+    .o_bd_section {
+        grid-column: span 12;
+        padding: 10px 0 0;
+        background: transparent !important;
+        border: none;
+        .o_bd_section_title { font-size: 1.1rem; font-weight: 700; color: $o-action; }
+    }
+    .o_bd_widget_head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    .o_bd_title { font-weight: 600; color: $o-gray-800; }
+    .o_bd_edit { opacity: 0; padding: 0 4px; transition: opacity 0.15s; }
+    .o_bd_widget:hover .o_bd_edit { opacity: 1; }
+
+    // Indicadores
+    .o_bd_kpi .o_bd_title { font-size: 0.85rem; color: $o-gray-700; }
+    .o_bd_kpi_value { font-size: 1.9rem; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .o_bd_kpi_note { font-size: 0.8rem; color: $o-gray-600; }
+    .o_bd_clickable { cursor: pointer; &:hover { text-decoration: underline; } }
+    .o_bd_good_text { color: #15803D; }
+    .o_bd_bad_text { color: #B91C1C; }
+
+    // Gráficas
+    .o_bd_chart { position: relative; width: 100%; }
+
+    // Tablas y listados
+    .o_bd_table_tools { margin-bottom: 6px; max-width: 280px; }
+    .o_bd_table_wrap { overflow: auto; }
+    .o_bd_table {
+        font-size: 0.85rem;
+        th { position: sticky; top: 0; background-color: #2F5BEA; color: #fff; white-space: nowrap; z-index: 1; }
+        td { white-space: nowrap; }
+        .o_bd_sortable { cursor: pointer; }
+        .o_bd_row { cursor: pointer; }
+        .o_bd_total td { font-weight: 700; background-color: $o-gray-100; cursor: pointer; }
+        .o_bd_good { background-color: #DCFCE7; color: #15803D; font-weight: 600; }
+        .o_bd_bad { background-color: #FEE2E2; color: #B91C1C; font-weight: 600; }
+    }
+}

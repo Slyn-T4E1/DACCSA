@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Etapas del CRM: configuración para reportes (grupo y fecha de cierre). -->
+<odoo>
+    <!-- Formulario de etapa: dos campos nuevos junto a "¿Etapa ganada?" -->
+    <record id="crm_stage_form_ccr" model="ir.ui.view">
+        <field name="name">crm.stage.form.custom_business_reports</field>
+        <field name="model">crm.stage</field>
+        <field name="inherit_id" ref="crm.crm_stage_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='is_won']" position="after">
+                <field name="report_stage_group"/>
+                <field name="report_close_on_enter" invisible="is_won"/>
+                <field name="report_open_status" invisible="is_won"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Lista de etapas: ver de un vistazo el grupo de cada etapa -->
+    <record id="crm_stage_tree_ccr" model="ir.ui.view">
+        <field name="name">crm.stage.list.custom_business_reports</field>
+        <field name="model">crm.stage</field>
+        <field name="inherit_id" ref="crm.crm_stage_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='is_won']" position="after">
+                <field name="report_stage_group" optional="show"/>
+                <field name="report_close_on_enter" optional="show"/>
+                <field name="report_open_status" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

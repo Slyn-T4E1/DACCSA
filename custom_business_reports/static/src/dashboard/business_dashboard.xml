@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Tableros DACSA (Etapa 6): plantillas de la acción cliente. -->
+<templates xml:space="preserve">
+
+    <!-- ================= Gráfica ================= -->
+    <t t-name="custom_business_reports.DashboardChart">
+        <div class="o_bd_chart" t-att-style="'height:' + props.widget.height + 'px'">
+            <canvas t-ref="canvas"/>
+        </div>
+    </t>
+
+    <!-- ================= Tabla ================= -->
+    <t t-name="custom_business_reports.DashboardTable">
+        <t t-set="w" t-value="props.widget"/>
+        <div class="o_bd_table_tools" t-if="w.rows.length > 6">
+            <input type="search" class="form-control form-control-sm" placeholder="Buscar en la tabla…"
+                   t-model="state.search"/>
+        </div>
+        <div class="o_bd_table_wrap" t-att-style="'max-height:' + (w.height + 160) + 'px'">
+            <table class="table table-sm table-hover o_bd_table mb-0">
+                <thead>
+                    <tr>
+                        <th class="o_bd_sortable" t-on-click="() => this.sortBy(-1)">
+                            <t t-esc="w.row_label"/>
+                            <i t-if="state.sortIndex === -1" t-attf-class="fa fa-sort-{{ state.sortAsc ? 'asc' : 'desc' }} ms-1"/>
+                        </th>
+                        <t t-foreach="w.columns" t-as="column" t-key="column.id">
+                            <th class="text-end o_bd_sortable" t-on-click="() => this.sortBy(column_index)">
+                                <t t-esc="column.name"/>
+                                <i t-if="state.sortIndex === column_index" t-attf-class="fa fa-sort-{{ state.sortAsc ? 'asc' : 'desc' }} ms-1"/>
+                            </th>
+                        </t>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-if="w.total and w.total_first" t-call="custom_business_reports.DashboardTableTotal"/>
+                    <t t-foreach="rows" t-as="row" t-key="row.key">
+                        <tr class="o_bd_row" t-on-click="() => props.onRowClick(row)" title="Ver los registros">
+                            <td><t t-esc="row.label"/></td>
+                            <t t-foreach="row.cells" t-as="cell" t-key="cell_index">
+                                <td t-attf-class="text-end {{ cellClass(cell) }}"><t t-esc="format(cell.value, w.columns[cell_index])"/></td>
+                            </t>
+                        </tr>
+                    </t>
+                    <tr t-if="!rows.length"><td t-att-colspan="w.columns.length + 1" class="text-muted">Sin datos</td></tr>
+                    <t t-if="w.total and !w.total_first" t-call="custom_business_reports.DashboardTableTotal"/>
+                </tbody>
+            </table>
+        </div>
+    </t>
+
+    <t t-name="custom_business_reports.DashboardTableTotal">
+        <tr class="o_bd_total" t-on-click="() => props.onRowClick(w.total)">
+            <td><t t-esc="w.total.label"/></td>
+            <t t-foreach="w.total.cells" t-as="cell" t-key="cell_index">
+                <td t-attf-class="text-end {{ cellClass(cell) }}"><t t-esc="format(cell.value, w.columns[cell_index])"/></td>
+            </t>
+        </tr>
+    </t>
+
+    <!-- ================= Acción principal ================= -->
+    <t t-name="custom_business_reports.BusinessDashboard">
+        <div class="o_action o_business_dashboard">
+            <ControlPanel display="{}">
+                <t t-set-slot="layout-buttons">
+                    <button class="btn btn-secondary" t-on-click="reload" title="Volver a calcular">
+                        <i class="fa fa-refresh"/> Actualizar
+                    </button>
+                    <t t-if="state.data and state.data.can_edit">
+                        <button class="btn btn-secondary ms-1" t-on-click="addWidget"><i class="fa fa-plus"/> Elemento</button>
+                        <button class="btn btn-secondary ms-1" t-on-click="configureDashboard"><i class="fa fa-cog"/> Configurar</button>
+                    </t>
+                </t>
+            </ControlPanel>
+            <div class="o_content o_bd_content">
+                <!-- Menú de tableros -->
+                <aside t-if="state.sidebar" class="o_bd_sidebar">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Tableros</strong>
+                        <button class="btn btn-link btn-sm p-0" t-on-click="() => this.state.sidebar = false" title="Ocultar">
+                            <i class="fa fa-angle-double-left"/>
+                        </button>
+                    </div>
+                    <t t-foreach="groupedDashboards" t-as="group" t-key="group.name">
+                        <div class="o_bd_sidebar_group" t-esc="group.name"/>
+                        <t t-foreach="group.items" t-as="dashboard" t-key="dashboard.id">
+                            <a href="#" t-attf-class="o_bd_sidebar_item {{ dashboard.id === state.activeId ? 'active' : '' }}"
+                               t-on-click.prevent="() => this.openDashboard(dashboard.id)" t-esc="dashboard.name"/>
+                        </t>
+                    </t>
+                    <div t-if="!state.dashboards.length" class="text-muted small">No hay tableros disponibles.</div>
+                </aside>
+                <button t-else="" class="btn btn-light btn-sm o_bd_sidebar_open" t-on-click="() => this.state.sidebar = true" title="Mostrar tableros">
+                    <i class="fa fa-angle-double-right"/>
+                </button>
+
+                <main class="o_bd_main" t-if="state.data">
+                    <t t-set="data" t-value="state.data"/>
+                    <div class="o_bd_header">
+                        <h2 class="mb-0" t-esc="data.name"/>
+                        <div class="text-muted small" t-if="data.description" t-esc="data.description"/>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="o_bd_filters" t-if="data.filters.length">
+                        <t t-foreach="data.filters" t-as="filter" t-key="filter.id">
+                            <div t-attf-class="o_bd_filter o_bd_filter_{{ filter.type }}">
+                                <label class="o_bd_filter_label" t-esc="filter.name"/>
+                                <t t-if="filter.type === 'date'">
+                                    <t t-set="period" t-value="state.filterValues[filter.id] || {}"/>
+                                    <div class="d-flex gap-1 align-items-center">
+                                        <select class="form-select form-select-sm" t-on-change="(ev) => this.setPeriod(filter, ev.target.value)">
+                                            <t t-foreach="filter.presets" t-as="preset" t-key="preset[0]">
+                                                <option t-att-value="preset[0]" t-att-selected="preset[0] === period.preset" t-esc="preset[1]"/>
+                                            </t>
+                                        </select>
+                                        <input type="date" class="form-control form-control-sm" t-att-value="period.from || ''"
+                                               t-on-change="(ev) => this.setPeriodDate(filter, 'from', ev)"/>
+                                        <span>–</span>
+                                        <input type="date" class="form-control form-control-sm" t-att-value="period.to || ''"
+                                               t-on-change="(ev) => this.setPeriodDate(filter, 'to', ev)"/>
+                                    </div>
+                                </t>
+                                <t t-elif="filter.type === 'many2one' and filter.multiple">
+                                    <MultiRecordSelector resModel="filter.model" resIds="state.filterValues[filter.id] || []"
+                                                         domain="filter.domain" placeholder="'Todos'"
+                                                         update="(ids) => this.setFilter(filter, ids)"/>
+                                </t>
+                                <t t-elif="filter.type === 'many2one'">
+                                    <RecordSelector resModel="filter.model" resId="(state.filterValues[filter.id] || [])[0] || false"
+                                                    domain="filter.domain" placeholder="filter.required ? 'Elige uno' : 'Todos'"
+                                                    update="(id) => this.setFilter(filter, id ? [id] : [])"/>
+                                </t>
+                                <t t-elif="filter.type === 'selection'">
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <t t-foreach="filter.options" t-as="option" t-key="option[0]">
+                                            <button t-attf-class="btn btn-sm {{ (state.filterValues[filter.id] || []).includes(option[0]) ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                                    t-on-click="() => this.toggleSelection(filter, option[0])" t-esc="option[1]"/>
+                                        </t>
+                                    </div>
+                                </t>
+                                <t t-else="">
+                                    <input type="search" class="form-control form-control-sm" placeholder="Escribe y presiona Enter"
+                                           t-att-value="state.filterValues[filter.id] || ''"
+                                           t-on-keyup="(ev) => this.onTextFilter(filter, ev)" t-on-change="(ev) => this.onTextFilter(filter, ev)"/>
+                                </t>
+                            </div>
+                        </t>
+                        <button class="btn btn-link btn-sm align-self-end" t-on-click="clearFilters">Valores por omisión</button>
+                        <i t-if="state.loading" class="fa fa-circle-o-notch fa-spin align-self-end mb-2"/>
+                    </div>
+
+                    <!-- Elementos -->
+                    <div class="o_bd_grid">
+                        <t t-foreach="data.widgets" t-as="widget" t-key="widget.id">
+                            <section t-att-class="widgetClass(widget)"
+                                     t-att-style="widget.type === 'kpi' ? 'background:' + widget.color : ''">
+                                <div class="o_bd_widget_head">
+                                    <span t-attf-class="o_bd_title {{ widget.type === 'section' ? 'o_bd_section_title' : '' }}" t-esc="widget.title"/>
+                                    <button t-if="data.can_edit" class="btn btn-link btn-sm o_bd_edit" title="Configurar"
+                                            t-on-click="() => this.editWidget(widget)"><i class="fa fa-pencil"/></button>
+                                </div>
+                                <div t-if="widget.error" class="alert alert-warning small mb-0" t-esc="widget.error"/>
+                                <t t-elif="widget.type === 'section'">
+                                    <div class="text-muted small" t-if="widget.subtitle" t-esc="widget.subtitle"/>
+                                </t>
+                                <t t-elif="widget.type === 'kpi'">
+                                    <div t-attf-class="o_bd_kpi_value {{ widget.state === 'good' ? 'o_bd_good_text' : widget.state === 'bad' ? 'o_bd_bad_text' : '' }} {{ widget.drilldown ? 'o_bd_clickable' : '' }}"
+                                         t-att-title="kpiFull(widget)"
+                                         t-on-click="() => widget.drilldown and this.drilldown(widget)" t-esc="kpiText(widget)"/>
+                                    <div class="o_bd_kpi_note" t-if="widget.subtitle" t-esc="widget.subtitle"/>
+                                </t>
+                                <t t-elif="widget.type === 'chart'">
+                                    <div t-if="!widget.labels.length" class="text-muted small">Sin datos</div>
+                                    <DashboardChart t-else="" widget="widget" currency="currency"
+                                                    onClick="(params) => this.drilldown(widget, params)"/>
+                                    <div class="o_bd_kpi_note" t-if="widget.subtitle" t-esc="widget.subtitle"/>
+                                </t>
+                                <t t-elif="widget.type === 'table'">
+                                    <div class="o_bd_kpi_note mb-1" t-if="widget.subtitle" t-esc="widget.subtitle"/>
+                                    <DashboardTable widget="widget" currency="currency"
+                                                    onRowClick="(row) => this.drilldown(widget, { group_key: row.key })"/>
+                                </t>
+                                <t t-elif="widget.type === 'list'">
+                                    <div class="o_bd_kpi_note mb-1" t-if="widget.subtitle" t-esc="widget.subtitle"/>
+                                    <div class="o_bd_table_wrap" t-att-style="'max-height:' + (widget.height + 160) + 'px'">
+                                        <table class="table table-sm table-hover o_bd_table mb-0">
+                                            <thead><tr>
+                                                <t t-foreach="widget.columns" t-as="column" t-key="column.name">
+                                                    <th t-att-class="['float', 'monetary', 'integer'].includes(column.type) ? 'text-end' : ''" t-esc="column.label"/>
+                                                </t>
+                                            </tr></thead>
+                                            <tbody>
+                                                <t t-foreach="widget.records" t-as="record" t-key="record.id">
+                                                    <tr class="o_bd_row" t-on-click="() => this.openRecord(widget, record)">
+                                                        <t t-foreach="record.cells" t-as="value" t-key="value_index">
+                                                            <td t-att-class="['float', 'monetary', 'integer'].includes(widget.columns[value_index].type) ? 'text-end' : ''"
+                                                                t-esc="listCell(widget.columns[value_index], value)"/>
+                                                        </t>
+                                                    </tr>
+                                                </t>
+                                                <tr t-if="!widget.records.length"><td t-att-colspan="widget.columns.length" class="text-muted">Sin registros</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <button class="btn btn-link btn-sm px-0" t-on-click="() => this.drilldown(widget)">Ver todos</button>
+                                </t>
+                            </section>
+                        </t>
+                    </div>
+                </main>
+                <main class="o_bd_main" t-elif="!state.dashboards.length">
+                    <div class="o_view_nocontent">
+                        <div class="o_nocontent_help">
+                            <p class="o_view_nocontent_smiling_face">No hay tableros disponibles</p>
+                            <p>Un administrador puede crearlos en Tableros DACSA › Configuración.</p>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </t>
+</templates>

@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Etapa 3 · Reporte Semanal de Dirección (captura semanal).
+    Proyecto > Reportes > Reporte semanal Dirección > Semanas de reporte.
+    Etapa 4 · Detalle por proyecto (balance financiero, costos, semana,
+    histórico) y análisis de proyectos de todas las semanas.
+-->
+<odoo>
+    <!-- ================= Semanas ================= -->
+    <record id="business_report_week_view_list" model="ir.ui.view">
+        <field name="name">business.report.week.list</field>
+        <field name="model">business.report.week</field>
+        <field name="arch" type="xml">
+            <list string="Semanas de reporte">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="project_count"/>
+                <field name="complete_count"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="planned_total"/>
+                <field name="real_total"/>
+                <field name="deviation_total" decoration-success="deviation_total &gt;= 0" decoration-danger="deviation_total &lt; 0"/>
+                <field name="neodata_advance_total"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'"
+                       decoration-warning="state == 'open'" decoration-success="state == 'closed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="business_report_week_view_form" model="ir.ui.view">
+        <field name="name">business.report.week.form</field>
+        <field name="model">business.report.week</field>
+        <field name="arch" type="xml">
+            <form string="Semana de reporte">
+                <header>
+                    <button name="action_start_capture" type="object" string="Iniciar captura"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_refresh_real" type="object" string="Actualizar real"
+                            invisible="state != 'open'"/>
+                    <button name="action_close" type="object" string="Cerrar semana" class="btn-primary"
+                            invisible="state != 'open'"
+                            confirm="Al cerrar se congela el costo real de esta semana. ¿Continuar?"/>
+                    <button name="action_reopen" type="object" string="Reabrir"
+                            invisible="state != 'closed'" groups="project.group_project_manager"/>
+                    <!-- Etapa 5: gráficas y tablero -->
+                    <button name="action_open_cost_chart" type="object" string="Gráfica de costos" icon="fa-bar-chart"
+                            invisible="state == 'draft'"/>
+                    <button name="action_open_trend_chart" type="object" string="Tendencia" icon="fa-line-chart"
+                            invisible="state == 'draft'"/>
+                    <button name="action_open_dashboard" type="object" string="Tablero" icon="fa-tachometer"
+                            invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="date" readonly="state != 'draft'"/>
+                            <field name="previous_week_id"/>
+                            <field name="is_current" invisible="not is_current"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="complete_count" string="Proyectos capturados"/>
+                            <field name="planned_total"/>
+                            <field name="real_total"/>
+                            <field name="deviation_total"/>
+                            <field name="estimate_total"/>
+                            <field name="operating_margin_total"/>
+                            <field name="real_refresh_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page name="projects" string="Proyectos en análisis">
+                            <!-- Captura en una sola pantalla: una fila por proyecto.
+                                 Las partidas se capturan con el botón "Partidas". -->
+                            <field name="project_line_ids" readonly="state == 'closed'"
+                                   context="{'default_week_id': id}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="analytic_account_id" options="{'no_create': True}"/>
+                                    <field name="neodata_sale"/>
+                                    <field name="neodata_sale_prev" optional="hide"/>
+                                    <field name="neodata_advance"/>
+                                    <field name="planned_total"/>
+                                    <field name="real_total"/>
+                                    <field name="deviation" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                                    <field name="oc_review" optional="hide"/>
+                                    <field name="estimate_review" optional="hide"/>
+                                    <field name="capture_state" widget="badge"
+                                           decoration-success="capture_state == 'complete'"
+                                           decoration-warning="capture_state == 'pending'"/>
+                                    <field name="contract_amount" optional="hide"/>
+                                    <field name="estimate_amount" optional="hide"/>
+                                    <field name="operating_margin" optional="hide"
+                                           decoration-success="operating_margin &gt;= 0" decoration-danger="operating_margin &lt; 0"/>
+                                    <button name="action_open_capture" type="object" string="Partidas" icon="fa-list"/>
+                                    <button name="action_open_detail" type="object" string="Detalle" icon="fa-line-chart"/>
+                                </list>
+                            </field>
+                        </page>
+                        <!-- Etapa 5: resumen de Dirección de la semana -->
+                        <page name="summary" string="Resumen" invisible="state == 'draft'">
+                            <group>
+                                <group string="Costos">
+                                    <field name="planned_total"/>
+                                    <field name="real_total"/>
+                                    <field name="deviation_total" string="Desviación acumulada"
+                                           decoration-success="deviation_total &gt;= 0" decoration-danger="deviation_total &lt; 0"/>
+                                    <field name="deviation_pct_total" widget="percentage"/>
+                                    <field name="deviation_delta_total"
+                                           decoration-success="deviation_delta_total &gt;= 0" decoration-danger="deviation_delta_total &lt; 0"/>
+                                </group>
+                                <group string="Venta y margen">
+                                    <field name="neodata_advance_total"/>
+                                    <field name="estimate_total" string="Venta real (estimado autorizado)"/>
+                                    <field name="operating_margin_total" string="Margen operativo global"/>
+                                    <field name="operating_margin_pct_total" widget="percentage"/>
+                                    <field name="margin_alert_pct" widget="percentage" readonly="state == 'closed'"/>
+                                </group>
+                            </group>
+                            <separator string="Balance de costos por partida"/>
+                            <field name="partida_summary_ids">
+                                <list>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="partida"/>
+                                    <field name="planned_amount" sum="Total" width="150px"/>
+                                    <field name="real_amount" sum="Total" width="150px"/>
+                                    <field name="deviation" sum="Total" width="150px"
+                                           decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                                    <field name="deviation_pct" widget="percentage" width="90px"/>
+                                    <field name="planned_delta" sum="Total" width="150px"/>
+                                    <field name="real_delta" sum="Total" width="150px"/>
+                                </list>
+                            </field>
+                            <separator string="Margen operativo al momento por proyecto"/>
+                            <field name="project_margin_ids">
+                                <list decoration-danger="margin_alert">
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="margin_alert" column_invisible="1"/>
+                                    <field name="analytic_account_id"/>
+                                    <field name="estimate_amount" string="Venta real" sum="Total" width="150px"/>
+                                    <field name="real_total" sum="Total" width="150px"/>
+                                    <field name="operating_margin" sum="Total" width="150px"/>
+                                    <field name="operating_margin_pct" widget="percentage" width="100px"/>
+                                    <field name="planned_margin_pct" widget="percentage" optional="hide" width="100px"/>
+                                    <button name="action_open_detail" type="object" string="Detalle" icon="fa-line-chart"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page name="notes" string="Notas">
+                            <field name="note"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="business_report_week_view_search" model="ir.ui.view">
+        <field name="name">business.report.week.search</field>
+        <field name="model">business.report.week</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <filter string="En captura" name="open" domain="[('state', '=', 'open')]"/>
+                <filter string="Cerradas" name="closed" domain="[('state', '=', 'closed')]"/>
+                <filter string="Fecha de corte" name="date" date="date"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="business_report_week_action" model="ir.actions.act_window">
+        <field name="name">Semanas de reporte</field>
+        <field name="res_model">business.report.week</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea la semana de reporte</p>
+            <p>Captura la fecha de corte y presiona "Iniciar captura": se copian los proyectos de la semana anterior.</p>
+        </field>
+    </record>
+
+    <!-- ================= Proyecto en la semana (captura de partidas) ================= -->
+    <record id="business_report_week_project_view_form" model="ir.ui.view">
+        <field name="name">business.report.week.project.form</field>
+        <field name="model">business.report.week.project</field>
+        <field name="arch" type="xml">
+            <form string="Captura del proyecto">
+                <field name="week_state" invisible="1"/>
+                <field name="currency_id" invisible="1"/>
+                <sheet>
+                    <div class="oe_title">
+                        <h2><field name="analytic_account_id" readonly="1"/></h2>
+                        <field name="week_id" readonly="1"/>
+                    </div>
+                    <group>
+                        <group string="NeoData (captura manual)">
+                            <field name="neodata_sale" readonly="week_state == 'closed'"/>
+                            <field name="neodata_sale_prev" readonly="week_state == 'closed'"/>
+                            <field name="oc_review" readonly="week_state == 'closed'"/>
+                            <field name="estimate_review" readonly="week_state == 'closed'"/>
+                            <field name="note" readonly="week_state == 'closed'"/>
+                            <field name="planned_margin_pct" widget="percentage" readonly="week_state == 'closed'"/>
+                        </group>
+                        <group string="Resultado de la semana">
+                            <field name="neodata_advance"/>
+                            <field name="week_cost"/>
+                            <field name="week_difference"/>
+                            <field name="neodata_margin"/>
+                            <field name="neodata_margin_pct" widget="percentage"/>
+                            <field name="deviation"/>
+                        </group>
+                    </group>
+                    <!-- Planeado (NeoData) se captura; real viene de Odoo. -->
+                    <field name="partida_line_ids" readonly="week_state == 'closed'">
+                        <list editable="bottom" create="0" delete="0">
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="partida" readonly="1"/>
+                            <field name="planned_prev" optional="hide"/>
+                            <field name="planned_amount"/>
+                            <field name="planned_delta" optional="hide"/>
+                            <field name="real_prev" optional="hide"/>
+                            <field name="real_amount"/>
+                            <field name="real_delta" optional="hide"/>
+                            <field name="deviation" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                            <field name="deviation_pct" widget="percentage" optional="show"/>
+                            <field name="week_difference" optional="hide"/>
+                            <button name="action_open_entries" type="object" string="Apuntes" icon="fa-search"/>
+                        </list>
+                    </field>
+                </sheet>
+                <footer>
+                    <button string="Guardar" special="save" class="btn-primary"/>
+                    <button string="Cerrar" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <!-- ================= Etapa 4 · Detalle por proyecto ================= -->
+    <record id="business_report_week_project_view_form_detail" model="ir.ui.view">
+        <field name="name">business.report.week.project.form.detail</field>
+        <field name="model">business.report.week.project</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <form string="Detalle del proyecto" create="0" delete="0">
+                <header>
+                    <button name="action_open_partida_analysis" type="object" string="Gráfica de partidas" icon="fa-bar-chart"/>
+                    <button name="action_open_history" type="object" string="Histórico" icon="fa-line-chart"/>
+                    <button name="action_open_budget_lines" type="object" string="Presupuesto por posición" icon="fa-table"/>
+                    <field name="week_state" widget="statusbar"/>
+                </header>
+                <field name="currency_id" invisible="1"/>
+                <sheet>
+                    <!-- Accesos a lo que forma cada dato de Odoo -->
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_sale_orders" type="object" class="oe_stat_button" icon="fa-file-text-o">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="contract_amount" widget="monetary"/></span>
+                                <span class="o_stat_text">Contrato</span>
+                            </div>
+                        </button>
+                        <button name="action_open_estimate_entries" type="object" class="oe_stat_button" icon="fa-check-square-o">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="estimate_amount" widget="monetary"/></span>
+                                <span class="o_stat_text">Estimado</span>
+                            </div>
+                        </button>
+                        <button name="action_open_invoice_lines" type="object" class="oe_stat_button" icon="fa-pencil-square-o">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="invoiced_amount" widget="monetary"/></span>
+                                <span class="o_stat_text">Facturado</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="analytic_account_id" readonly="1"/></h1>
+                        <field name="week_id" readonly="1"/>
+                        <span invisible="not project_id"> · <field name="project_id" readonly="1"/></span>
+                    </div>
+                    <!-- Indicadores principales -->
+                    <group>
+                        <group>
+                            <field name="operating_margin" decoration-success="operating_margin &gt;= 0" decoration-danger="operating_margin &lt; 0"/>
+                            <field name="operating_margin_pct" widget="percentage"/>
+                            <field name="planned_margin_pct" widget="percentage" readonly="week_state == 'closed'"/>
+                        </group>
+                        <group>
+                            <field name="neodata_margin" decoration-success="neodata_margin &gt;= 0" decoration-danger="neodata_margin &lt; 0"/>
+                            <field name="neodata_margin_pct" widget="percentage"/>
+                            <field name="deviation" string="Desviación de costos" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page name="finance" string="Balance financiero">
+                            <group>
+                                <group string="Estimaciones">
+                                    <field name="contract_amount"/>
+                                    <field name="oc_review" readonly="week_state == 'closed'"/>
+                                    <field name="neodata_sale" string="Venta NeoData sem. actual" readonly="week_state == 'closed'"/>
+                                    <field name="estimate_amount"/>
+                                    <field name="remaining_estimate"/>
+                                    <field name="estimate_progress_pct" widget="percentage"/>
+                                    <field name="estimate_review" readonly="week_state == 'closed'"/>
+                                    <field name="invoiced_amount"/>
+                                </group>
+                                <group string="Costos y márgenes">
+                                    <field name="planned_total"/>
+                                    <field name="real_total"/>
+                                    <field name="operating_margin"/>
+                                    <field name="neodata_margin"/>
+                                    <field name="note" readonly="week_state == 'closed'"/>
+                                </group>
+                            </group>
+                            <div class="text-muted small">
+                                Estimado autorizado = real de la posición de Ventas sin cuentas de anticipo de clientes.
+                                Facturado = facturas de cliente publicadas sin impuestos ni anticipos.
+                                Margen operativo al momento = estimado autorizado − costo real.
+                                Margen NeoData = venta NeoData − costo real.
+                                Los datos de Odoo se toman hasta la fecha de corte y se congelan al cerrar la semana.
+                            </div>
+                        </page>
+                        <page name="costs" string="Costos">
+                            <field name="partida_line_ids" readonly="week_state == 'closed'">
+                                <list editable="bottom" create="0" delete="0">
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="partida" readonly="1"/>
+                                    <field name="planned_amount" sum="Total" width="170px"/>
+                                    <field name="real_amount" sum="Total" width="170px"/>
+                                    <field name="deviation" sum="Total" width="170px" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                                    <field name="deviation_pct" widget="percentage" width="110px"/>
+                                    <button name="action_open_entries" type="object" string="Apuntes" icon="fa-search"/>
+                                </list>
+                            </field>
+                            <separator string="Tendencia semanal del proyecto"/>
+                            <field name="history_line_ids" readonly="1">
+                                <list>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="week_date"/>
+                                    <field name="week_state" widget="badge" decoration-success="week_state == 'closed'" decoration-warning="week_state == 'open'"/>
+                                    <field name="planned_total" width="150px"/>
+                                    <field name="real_total" width="150px"/>
+                                    <field name="deviation" width="150px" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                                    <field name="neodata_sale" width="150px"/>
+                                    <field name="neodata_margin" width="150px"/>
+                                    <field name="estimate_amount" optional="hide" width="150px"/>
+                                    <field name="operating_margin" width="150px"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page name="week" string="Semana">
+                            <group>
+                                <group string="Margen semanal">
+                                    <field name="neodata_sale" string="Venta NeoData sem. actual" readonly="1"/>
+                                    <field name="neodata_sale_prev" readonly="week_state == 'closed'"/>
+                                    <field name="neodata_advance"/>
+                                    <field name="week_cost"/>
+                                    <field name="week_difference" decoration-success="week_difference &gt;= 0" decoration-danger="week_difference &lt; 0"/>
+                                </group>
+                                <group string="Costos de la semana">
+                                    <field name="planned_prev_total"/>
+                                    <field name="planned_total"/>
+                                    <field name="real_prev_total"/>
+                                    <field name="real_total"/>
+                                </group>
+                            </group>
+                            <separator string="Diferencia de costos por partida (semana actual vs anterior)"/>
+                            <field name="partida_week_ids" readonly="1">
+                                <list>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="partida"/>
+                                    <field name="planned_delta" sum="Total" width="160px"/>
+                                    <field name="real_delta" sum="Total" width="160px"/>
+                                    <field name="week_difference" sum="Total" width="160px" decoration-success="week_difference &gt;= 0" decoration-danger="week_difference &lt; 0"/>
+                                    <field name="planned_prev" optional="hide"/>
+                                    <field name="real_prev" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Proyectos en análisis de todas las semanas (histórico) -->
+    <record id="business_report_week_project_view_list" model="ir.ui.view">
+        <field name="name">business.report.week.project.list</field>
+        <field name="model">business.report.week.project</field>
+        <field name="arch" type="xml">
+            <list string="Proyectos en análisis" create="0" delete="0">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="week_date"/>
+                <field name="analytic_account_id"/>
+                <field name="contract_amount" sum="Total"/>
+                <field name="estimate_amount" sum="Total"/>
+                <field name="invoiced_amount" sum="Total" optional="hide"/>
+                <field name="neodata_sale" sum="Total" optional="hide"/>
+                <field name="planned_total" sum="Total"/>
+                <field name="real_total" sum="Total"/>
+                <field name="deviation" sum="Total" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                <field name="operating_margin" sum="Total"/>
+                <field name="operating_margin_pct" widget="percentage" optional="show"/>
+                <field name="neodata_margin" sum="Total" optional="show"/>
+                <field name="week_cost" sum="Total" optional="hide"/>
+                <field name="week_difference" sum="Total" optional="hide"/>
+                <field name="week_state" widget="badge" decoration-success="week_state == 'closed'" decoration-warning="week_state == 'open'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="business_report_week_project_view_search" model="ir.ui.view">
+        <field name="name">business.report.week.project.search</field>
+        <field name="model">business.report.week.project</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="analytic_account_id"/>
+                <field name="week_id"/>
+                <filter string="Semanas cerradas" name="closed" domain="[('week_id.state', '=', 'closed')]"/>
+                <filter string="Fecha de corte" name="week_date" date="week_date"/>
+                <group>
+                    <filter string="Semana" name="group_week" context="{'group_by': 'week_id'}"/>
+                    <filter string="Proyecto" name="group_project" context="{'group_by': 'analytic_account_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="business_report_week_project_view_pivot" model="ir.ui.view">
+        <field name="name">business.report.week.project.pivot</field>
+        <field name="model">business.report.week.project</field>
+        <field name="arch" type="xml">
+            <pivot string="Proyectos en análisis">
+                <field name="analytic_account_id" type="row"/>
+                <field name="week_date" interval="day" type="col"/>
+                <field name="operating_margin" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="business_report_week_project_view_graph" model="ir.ui.view">
+        <field name="name">business.report.week.project.graph</field>
+        <field name="model">business.report.week.project</field>
+        <field name="arch" type="xml">
+            <graph string="Margen operativo por proyecto" type="bar">
+                <field name="analytic_account_id"/>
+                <field name="operating_margin" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Tendencia de un proyecto: una línea por semana -->
+    <record id="business_report_week_project_view_graph_trend" model="ir.ui.view">
+        <field name="name">business.report.week.project.graph.trend</field>
+        <field name="model">business.report.week.project</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <graph string="Tendencia semanal" type="line">
+                <field name="week_date" interval="day"/>
+                <field name="real_total" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="business_report_week_project_action" model="ir.actions.act_window">
+        <field name="name">Proyectos en análisis</field>
+        <field name="res_model">business.report.week.project</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="view_id" ref="business_report_week_project_view_list"/>
+        <field name="search_view_id" ref="business_report_week_project_view_search"/>
+        <field name="context">{'form_view_ref': 'custom_business_reports.business_report_week_project_view_form_detail', 'search_default_group_week': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aún no hay proyectos en análisis</p>
+            <p>Los proyectos se agregan en las semanas de reporte. Aquí se ve el histórico de todas las semanas.</p>
+        </field>
+    </record>
+
+    <!-- ================= Etapa 5 · Gráficas del Tablero de Dirección ================= -->
+    <record id="business_report_dashboard_cost_view_graph" model="ir.ui.view">
+        <field name="name">business.report.dashboard.cost.graph</field>
+        <field name="model">business.report.dashboard.cost</field>
+        <field name="arch" type="xml">
+            <graph string="Balance de costos por partida" type="bar" stacked="0">
+                <field name="partida"/>
+                <field name="kind"/>
+                <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_cost_view_pivot" model="ir.ui.view">
+        <field name="name">business.report.dashboard.cost.pivot</field>
+        <field name="model">business.report.dashboard.cost</field>
+        <field name="arch" type="xml">
+            <pivot string="Balance de costos por partida">
+                <field name="partida" type="row"/>
+                <field name="kind" type="col"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_cost_view_search" model="ir.ui.view">
+        <field name="name">business.report.dashboard.cost.search</field>
+        <field name="model">business.report.dashboard.cost</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="analytic_account_id"/>
+                <field name="week_id"/>
+                <filter string="Semana vigente" name="current" domain="[('is_current', '=', True)]"/>
+                <group>
+                    <filter string="Proyecto" name="group_project" context="{'group_by': 'analytic_account_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_trend_view_graph" model="ir.ui.view">
+        <field name="name">business.report.dashboard.trend.graph</field>
+        <field name="model">business.report.dashboard.trend</field>
+        <field name="arch" type="xml">
+            <graph string="Indicadores de costos y venta" type="line" stacked="0">
+                <field name="week_date" interval="day"/>
+                <field name="serie"/>
+                <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_trend_view_pivot" model="ir.ui.view">
+        <field name="name">business.report.dashboard.trend.pivot</field>
+        <field name="model">business.report.dashboard.trend</field>
+        <field name="arch" type="xml">
+            <pivot string="Indicadores de costos y venta">
+                <field name="week_date" interval="day" type="row"/>
+                <field name="serie" type="col"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_trend_view_search" model="ir.ui.view">
+        <field name="name">business.report.dashboard.trend.search</field>
+        <field name="model">business.report.dashboard.trend</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="analytic_account_id"/>
+                <filter string="Semanas cerradas" name="closed" domain="[('week_state', '=', 'closed')]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Lista de partidas (detalle desde los tableros) -->
+    <record id="business_report_week_partida_view_list" model="ir.ui.view">
+        <field name="name">business.report.week.partida.list</field>
+        <field name="model">business.report.week.partida</field>
+        <field name="arch" type="xml">
+            <list string="Partidas" create="0" delete="0">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="week_date"/>
+                <field name="analytic_account_id"/>
+                <field name="partida"/>
+                <field name="planned_amount" sum="Total"/>
+                <field name="real_amount" sum="Total"/>
+                <field name="deviation" sum="Total" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                <field name="deviation_pct" widget="percentage"/>
+                <field name="planned_delta" sum="Total" optional="hide"/>
+                <field name="real_delta" sum="Total" optional="hide"/>
+                <button name="action_open_entries" type="object" string="Apuntes" icon="fa-search"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Gráfica y tabla dinámica de partidas -->
+    <record id="business_report_week_partida_view_graph" model="ir.ui.view">
+        <field name="name">business.report.week.partida.graph</field>
+        <field name="model">business.report.week.partida</field>
+        <field name="arch" type="xml">
+            <graph string="Costo por partida" type="bar">
+                <field name="partida"/>
+                <field name="real_amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="business_report_week_partida_view_pivot" model="ir.ui.view">
+        <field name="name">business.report.week.partida.pivot</field>
+        <field name="model">business.report.week.partida</field>
+        <field name="arch" type="xml">
+            <pivot string="Costo por partida">
+                <field name="partida" type="row"/>
+                <field name="planned_amount" type="measure"/>
+                <field name="real_amount" type="measure"/>
+                <field name="deviation" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+</odoo>

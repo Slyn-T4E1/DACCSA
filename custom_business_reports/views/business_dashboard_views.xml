@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Etapa 6 · App "Tableros DACSA": acción de los tableros (JS) y pantallas de
+    configuración (tableros, filtros, elementos y medidas).
+-->
+<odoo>
+    <!-- ================= Acción cliente (los tableros) ================= -->
+    <record id="action_business_dashboard" model="ir.actions.client">
+        <field name="name">Tableros</field>
+        <field name="tag">business_dashboard</field>
+    </record>
+
+    <!-- Abre directamente el Reporte semanal Dirección (menú en Proyecto) -->
+    <record id="action_week_report_dashboard" model="ir.actions.client">
+        <field name="name">Tablero de Dirección</field>
+        <field name="tag">business_dashboard</field>
+        <field name="params" eval="{'dashboard_xmlid': 'custom_business_reports.dashboard_week_report'}"/>
+    </record>
+
+    <!-- ================= Tablero ================= -->
+    <record id="business_dashboard_view_list" model="ir.ui.view">
+        <field name="name">business.dashboard.list</field>
+        <field name="model">business.dashboard</field>
+        <field name="arch" type="xml">
+            <list string="Tableros">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="group_ids" widget="many2many_tags"/>
+                <field name="widget_count"/>
+                <field name="active" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="business_dashboard_view_form" model="ir.ui.view">
+        <field name="name">business.dashboard.form</field>
+        <field name="model">business.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Tablero">
+                <header>
+                    <button name="action_open_dashboard" type="object" string="Abrir tablero" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Archivado" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title"><h1><field name="name" placeholder="Nombre del tablero"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="category"/>
+                            <field name="sequence"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="group_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="Descripción que se muestra bajo el título del tablero"/>
+                    <notebook>
+                        <page name="widgets" string="Elementos">
+                            <field name="widget_ids" context="{'default_dashboard_id': id}">
+                                <list>
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="widget_type"/>
+                                    <field name="code"/>
+                                    <field name="model_id"/>
+                                    <field name="width"/>
+                                    <field name="hidden"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page name="filters" string="Filtros">
+                            <field name="filter_ids" context="{'default_dashboard_id': id}">
+                                <list>
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="filter_type"/>
+                                    <field name="field_name"/>
+                                    <field name="comodel_id"/>
+                                    <field name="required"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page name="help" string="Ayuda">
+                            <div class="o_form_label mb-2">Cómo se arma un tablero</div>
+                            <ul>
+                                <li><b>Filtros</b>: periodo, registros (vendedor, semana, proyecto…), selección o texto. Cada filtro tiene un campo por omisión; se aplica a todo elemento cuyo modelo tenga ese campo. En cada elemento, la pestaña "Filtros aplicados" permite cambiar el campo o no aplicarlo (dejando el campo vacío).</li>
+                                <li><b>Elementos</b>: indicador, gráfica, tabla o listado. Se elige el modelo, el dominio (qué registros) y, en gráficas y tablas, la agrupación.</li>
+                                <li><b>Medidas</b>: suma, promedio, mínimo, máximo o conteo de un campo, con un dominio adicional opcional. También pueden ser fórmulas.</li>
+                                <li><b>Fórmulas</b>: usan los códigos de los indicadores (p. ej. <code>div(ganados, ganados + perdidos)</code>) o, en tablas, los códigos de las columnas del renglón (p. ej. <code>planeado - real</code>). Funciones: div(a, b) (división que da 0 si b es 0), abs, min, max, round. Un indicador marcado como "Oculto" sirve solo para fórmulas.</li>
+                                <li>Los cambios se ven al presionar "Actualizar" en el tablero. Las actualizaciones del módulo no sobrescriben los tableros.</li>
+                            </ul>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="business_dashboard_view_search" model="ir.ui.view">
+        <field name="name">business.dashboard.search</field>
+        <field name="model">business.dashboard</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="category"/>
+                <filter string="Archivados" name="archived" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter string="Categoría" name="group_category" context="{'group_by': 'category'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="business_dashboard_config_action" model="ir.actions.act_window">
+        <field name="name">Configurar tableros</field>
+        <field name="res_model">business.dashboard</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea un tablero</p>
+            <p>Agrega filtros y elementos (indicadores, gráficas, tablas o listados) con su modelo, dominio y fórmulas.</p>
+        </field>
+    </record>
+
+    <!-- ================= Filtro ================= -->
+    <record id="business_dashboard_filter_view_form" model="ir.ui.view">
+        <field name="name">business.dashboard.filter.form</field>
+        <field name="model">business.dashboard.filter</field>
+        <field name="arch" type="xml">
+            <form string="Filtro">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="filter_type"/>
+                            <field name="field_name" placeholder="p. ej. user_id"/>
+                            <field name="required"/>
+                            <field name="dashboard_id" invisible="1"/>
+                        </group>
+                        <group invisible="filter_type != 'date'" string="Periodo">
+                            <field name="default_period"/>
+                        </group>
+                        <group invisible="filter_type != 'many2one'" string="Registros">
+                            <field name="comodel_id" required="filter_type == 'many2one'" options="{'no_create': True}"/>
+                            <field name="comodel_name" invisible="1"/>
+                            <field name="multiple"/>
+                            <field name="record_domain" widget="domain" options="{'model': 'comodel_name'}"
+                                   invisible="not comodel_name"/>
+                            <field name="default_domain" widget="domain" options="{'model': 'comodel_name'}"
+                                   invisible="not comodel_name"/>
+                        </group>
+                        <group invisible="filter_type != 'selection'" string="Selección">
+                            <field name="selection_model_id" required="filter_type == 'selection'" options="{'no_create': True}"/>
+                            <field name="default_selection" placeholder="p. ej. sin_recompra,recompra"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Elemento ================= -->
+    <record id="business_dashboard_widget_view_form" model="ir.ui.view">
+        <field name="name">business.dashboard.widget.form</field>
+        <field name="model">business.dashboard.widget</field>
+        <field name="arch" type="xml">
+            <form string="Elemento">
+                <sheet>
+                    <div class="oe_title"><h2><field name="name" placeholder="Título"/></h2></div>
+                    <group>
+                        <group>
+                            <field name="dashboard_id" options="{'no_create': True}"/>
+                            <field name="widget_type"/>
+                            <field name="code" required="widget_type == 'kpi'" placeholder="p. ej. ganados"/>
+                            <field name="subtitle"/>
+                        </group>
+                        <group>
+                            <field name="width"/>
+                            <field name="height" invisible="widget_type not in ('chart', 'table', 'list')"/>
+                            <field name="sequence"/>
+                            <field name="hidden" invisible="widget_type != 'kpi'"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info py-2" invisible="not preview" role="status">
+                        <field name="preview" nolabel="1"/>
+                    </div>
+                    <notebook invisible="widget_type == 'section'">
+                        <page name="source" string="Datos">
+                            <group>
+                                <group>
+                                    <field name="formula" invisible="widget_type != 'kpi'"
+                                           placeholder="Vacío = usa la medida; p. ej. div(ganados, ganados + perdidos)"/>
+                                    <field name="model_id" options="{'no_create': True}"
+                                           invisible="widget_type == 'kpi' and formula"/>
+                                    <field name="model_name" invisible="1"/>
+                                </group>
+                                <group invisible="widget_type not in ('chart', 'table')">
+                                    <field name="groupby_field_id" options="{'no_create': True}"/>
+                                    <field name="groupby_interval"
+                                           invisible="not groupby_field_id"/>
+                                    <field name="groupby2_field_id" options="{'no_create': True}"
+                                           invisible="widget_type != 'chart'"/>
+                                    <field name="groupby2_interval" invisible="not groupby2_field_id"/>
+                                    <field name="sort_mode"/>
+                                    <field name="limit"/>
+                                </group>
+                            </group>
+                            <group invisible="not model_name or (widget_type == 'kpi' and formula)">
+                                <field name="domain" widget="domain" options="{'model': 'model_name', 'in_dialog': True}"/>
+                            </group>
+                            <field name="measure_ids" invisible="widget_type == 'list' or (widget_type == 'kpi' and formula)"
+                                   context="{'default_widget_id': id}">
+                                <list>
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="code"/>
+                                    <field name="aggregate"/>
+                                    <field name="field_id"/>
+                                    <field name="formula"/>
+                                    <field name="value_format"/>
+                                    <field name="hidden"/>
+                                </list>
+                            </field>
+                            <group invisible="widget_type != 'list'">
+                                <field name="list_fields" placeholder="date_closed, partner_id, name, expected_revenue"/>
+                                <field name="list_order" placeholder="expected_revenue desc"/>
+                            </group>
+                        </page>
+                        <page name="display" string="Formato">
+                            <group>
+                                <group invisible="widget_type != 'kpi'">
+                                    <field name="value_format"/>
+                                    <field name="abbreviate"/>
+                                    <field name="color_mode"/>
+                                    <field name="threshold" invisible="color_mode != 'threshold'"/>
+                                    <field name="color"/>
+                                </group>
+                                <group invisible="widget_type != 'chart'">
+                                    <field name="chart_type"/>
+                                    <field name="show_legend"/>
+                                </group>
+                                <group invisible="widget_type != 'table'">
+                                    <field name="row_label"/>
+                                    <field name="show_total"/>
+                                    <field name="total_first" invisible="not show_total"/>
+                                </group>
+                                <group invisible="widget_type not in ('table', 'list', 'chart', 'kpi')">
+                                    <field name="drilldown_view_id" options="{'no_create': True}"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page name="filters" string="Filtros aplicados">
+                            <p class="text-muted">
+                                Por omisión cada filtro se aplica a su campo si el modelo lo tiene. Aquí se puede usar
+                                otro campo (p. ej. date_closed en vez de create_date) o dejar el campo vacío para no aplicarlo.
+                            </p>
+                            <field name="filter_map_ids" context="{'default_widget_id': id}">
+                                <list editable="bottom">
+                                    <field name="dashboard_id" column_invisible="1"/>
+                                    <field name="filter_id" options="{'no_create': True}"/>
+                                    <field name="field_path" placeholder="vacío = no aplicar"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Medida ================= -->
+    <record id="business_dashboard_measure_view_form" model="ir.ui.view">
+        <field name="name">business.dashboard.measure.form</field>
+        <field name="model">business.dashboard.measure</field>
+        <field name="arch" type="xml">
+            <form string="Medida">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code" placeholder="p. ej. planeado"/>
+                            <field name="widget_id" invisible="1"/>
+                            <field name="model_id" invisible="1"/>
+                            <field name="formula" placeholder="Vacío = cálculo de un campo; p. ej. planeado - real"/>
+                            <field name="aggregate" invisible="formula"/>
+                            <field name="field_id" invisible="formula or aggregate == 'count'" options="{'no_create': True}"/>
+                            <field name="period_field" invisible="formula" placeholder="p. ej. date_closed"/>
+                        </group>
+                        <group>
+                            <field name="value_format"/>
+                            <field name="color_mode"/>
+                            <field name="threshold" invisible="color_mode != 'threshold'"/>
+                            <field name="color" placeholder="#2F5BEA"/>
+                            <field name="hidden"/>
+                        </group>
+                    </group>
+                    <group invisible="formula">
+                        <field name="extra_domain" placeholder="[('won_status', '=', 'won')]"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Menú de la app ================= -->
+    <menuitem id="menu_business_dashboard_root" name="Tableros DACSA" sequence="45"
+              web_icon="custom_business_reports,static/description/icon.png"
+              groups="base.group_user"/>
+    <menuitem id="menu_business_dashboard_view" name="Tableros" parent="menu_business_dashboard_root"
+              action="action_business_dashboard" sequence="10"/>
+    <menuitem id="menu_business_dashboard_config_root" name="Configuración" parent="menu_business_dashboard_root"
+              sequence="90" groups="custom_business_reports.group_dashboard_manager"/>
+    <menuitem id="menu_business_dashboard_config" name="Tableros" parent="menu_business_dashboard_config_root"
+              action="business_dashboard_config_action" sequence="10"/>
+</odoo>
