@@ -84,3 +84,36 @@ CLOSE_STATUS_SELECTION = [
     ('perdido_recompra', 'Perdido · Recompra'),
     ('perdido_otro', 'Perdido · Otro segmento'),
 ]
+
+# ----------------------------------------------------------------------
+# Etapa 3 · Reporte Semanal de Dirección (construcción)
+# ----------------------------------------------------------------------
+
+# Tipo de partida de una posición presupuestaria. Las posiciones son por
+# proyecto (Materiales PM, Materiales NMM...), el tipo permite sumarlas
+# entre proyectos.
+PARTIDA_SELECTION = [
+    ('materiales', 'Materiales'),
+    ('mano_obra', 'Mano de obra'),
+    ('subcontratistas', 'Subcontratistas'),
+    ('equipo_herramienta', 'Equipo y herramienta'),
+    ('indirectos', 'Indirectos'),
+    ('ventas', 'Ventas'),
+    ('otro', 'Otro (no es costo)'),
+]
+
+# Partidas de costo que forman el "costo real de la analítica", en el orden
+# del Reporte Semanal de Dirección.
+COST_PARTIDAS = ['materiales', 'mano_obra', 'subcontratistas', 'equipo_herramienta', 'indirectos']
+COST_PARTIDA_SELECTION = [item for item in PARTIDA_SELECTION if item[0] in COST_PARTIDAS]
+
+# Estados de la semana de reporte.
+WEEK_STATE_SELECTION = [
+    ('draft', 'Borrador'),
+    ('open', 'En captura'),
+    ('closed', 'Cerrada'),
+]
+
+# Estados de presupuesto que no cuentan para el real (igual que el tablero
+# del proyecto en custom_budget_project).
+EXCLUDED_BUDGET_STATES = ('draft', 'cancel')

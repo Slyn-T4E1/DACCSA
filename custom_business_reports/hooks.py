@@ -44,6 +44,30 @@ DEFAULT_OPEN_STATUS = {
     'en pausa': 'pausa',
 }
 
+# Etapa 3: palabra en el nombre de la posición (normalizado) -> tipo de partida.
+# El orden importa: "anticipo" e "inventario" se revisan antes que el resto.
+DEFAULT_PARTIDAS = [
+    ('anticipo', 'otro'),
+    ('inventario', 'otro'),
+    ('material', 'materiales'),
+    ('mano de obra', 'mano_obra'),
+    ('subcontrat', 'subcontratistas'),
+    ('equipo', 'equipo_herramienta'),
+    ('herramienta', 'equipo_herramienta'),
+    ('indirecto', 'indirectos'),
+    ('venta', 'ventas'),
+    ('ingreso', 'ventas'),
+    ('igreso', 'ventas'),
+    ('estimacion', 'ventas'),
+]
+
+# Abreviaturas usadas en DACSA como primera palabra del nombre (MO PA, MAT ISO, Herr)
+DEFAULT_PARTIDA_PREFIXES = {
+    'mo': 'mano_obra',
+    'mat': 'materiales',
+    'herr': 'equipo_herramienta',
+}
+
 # Palabra en la etiqueta de la calidad (normalizada) -> segmento
 DEFAULT_SEGMENTS = {
     'idoneo': 'sin_recompra',
@@ -86,6 +110,26 @@ def _setup_open_status(env):
         if status:
             stage.report_open_status = status
             _logger.info('Etapa "%s": listado del pipeline %s', stage.name, status)
+
+
+def _setup_partidas(env):
+    """Etapa 3: tipo de partida de las posiciones presupuestarias por su nombre.
+
+    Se llama al instalar y desde la migración 19.0.3.0.0. Solo llena
+    posiciones sin tipo; las que no se reconocen se configuran a mano en
+    Proyecto › Configuración › Partidas de posiciones presupuestarias.
+    """
+    posts = env['account.budget.post'].search([('report_partida', '=', False)])
+    assigned = 0
+    for post in posts:
+        name = _normalize(post.name)
+        partida = next((value for word, value in DEFAULT_PARTIDAS if word in name), None)
+        if not partida and name:
+            partida = DEFAULT_PARTIDA_PREFIXES.get(name.split()[0])
+        if partida:
+            post.report_partida = partida
+            assigned += 1
+    _logger.info('Tipo de partida asignado a %s de %s posiciones presupuestarias', assigned, len(posts))
 
 
 def _setup_segment_rules(env):
@@ -161,6 +205,7 @@ def _fill_cancel_close_date(env):
 def post_init_hook(env):
     _setup_stage_groups(env)
     _setup_open_status(env)
+    _setup_partidas(env)
     _setup_segment_rules(env)
     # Paso 3: por si las reglas ya existían, recalcular segmentos.
     env['crm.lead.segment.rule']._recompute_all_leads()

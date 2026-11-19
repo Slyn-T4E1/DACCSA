@@ -78,3 +78,38 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 5. *Tableros › Dirección y comercial › Seguimiento comercial*: cambiar el Periodo
    y el Vendedor; los indicadores y el embudo deben moverse juntos.
 6. Clic en una gráfica: abre el menú del reporte correspondiente.
+
+## Etapa 3 · Qué hace
+
+* **Tipo de partida** en las posiciones presupuestarias (`report_partida`):
+  Materiales, Mano de obra, Subcontratistas, Equipo y herramienta,
+  Indirectos, Ventas u Otro. Se asigna solo por el nombre (Materiales PM,
+  Mano de Obra NMM...) y se revisa en *Proyecto › Configuración › Partidas de
+  posiciones presupuestarias* (filtro "Sin tipo de partida").
+* **Semanas de reporte** (*Proyecto › Reportes › Reporte semanal Dirección ›
+  Semanas de reporte*): Borrador → En captura → Cerrada.
+  * *Iniciar captura*: copia los proyectos de la semana anterior con su venta
+    NeoData (pasa a "semana anterior"), costos planeados y reales anteriores.
+  * Captura en una sola pantalla: una fila por proyecto (cuenta analítica)
+    con venta NeoData; botón *Partidas* para el costo planeado por partida y
+    OC / estimación en revisión.
+  * *Actualizar real*: costo real por partida hasta la fecha de corte, con la
+    misma lógica que el Real del presupuesto por posición.
+  * *Cerrar semana*: exige todos los proyectos capturados y congela el real.
+    Solo el gerente de proyectos puede reabrir.
+  * Cálculos: avance semanal NeoData, costo de la semana, diferencia semanal,
+    margen NeoData, desviación (planeado − real) por proyecto y por partida.
+  * Botón *Apuntes* en cada partida: apuntes analíticos que forman el real.
+
+## Etapa 3 · Cómo probar
+
+1. Actualizar el módulo (migración 19.0.3.0.0: tipo de partida por nombre).
+2. *Partidas de posiciones presupuestarias*: filtro "Sin tipo de partida" y
+   asignar a mano las que no se reconocieron.
+3. Crear la semana con fecha de corte, *Iniciar captura* y agregar los proyectos
+   en análisis (la primera vez; después se copian solos).
+4. Abrir *Partidas* de MARS Patio de Maniobras: el real por partida debe
+   coincidir con el Real de "Presupuestos por posición presupuestaria" del
+   tablero del proyecto (si el presupuesto cubre hasta la fecha de corte).
+5. Capturar venta NeoData y planeado; cerrar la semana; crear la siguiente y
+   revisar que arrastre los valores y calcule el costo de la semana.

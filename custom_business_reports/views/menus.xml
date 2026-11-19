@@ -33,4 +33,14 @@
               action="action_business_list_prospecting" sequence="100"/>
     <menuitem id="menu_business_list_idle" parent="menu_business_reports_root"
               action="action_business_list_idle" sequence="110"/>
+
+    <!-- Etapa 3: Proyecto › Reportes › Reporte semanal Dirección -->
+    <menuitem id="menu_week_report_root" name="Reporte semanal Dirección"
+              parent="project.menu_project_report" sequence="5"/>
+    <menuitem id="menu_week_report_weeks" parent="menu_week_report_root"
+              action="business_report_week_action" sequence="10"/>
+    <!-- Configuración: tipo de partida de las posiciones presupuestarias -->
+    <menuitem id="menu_budget_post_partida" name="Partidas de posiciones presupuestarias"
+              parent="project.menu_project_config" action="action_budget_post_partida"
+              groups="project.group_project_manager" sequence="60"/>
 </odoo>

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Etapa 3 · Reporte Semanal de Dirección (captura semanal).
+    Proyecto > Reportes > Reporte semanal Dirección > Semanas de reporte.
+-->
+<odoo>
+    <!-- ================= Semanas ================= -->
+    <record id="business_report_week_view_list" model="ir.ui.view">
+        <field name="name">business.report.week.list</field>
+        <field name="model">business.report.week</field>
+        <field name="arch" type="xml">
+            <list string="Semanas de reporte">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="project_count"/>
+                <field name="complete_count"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="planned_total"/>
+                <field name="real_total"/>
+                <field name="deviation_total" decoration-success="deviation_total &gt;= 0" decoration-danger="deviation_total &lt; 0"/>
+                <field name="neodata_advance_total"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'"
+                       decoration-warning="state == 'open'" decoration-success="state == 'closed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="business_report_week_view_form" model="ir.ui.view">
+        <field name="name">business.report.week.form</field>
+        <field name="model">business.report.week</field>
+        <field name="arch" type="xml">
+            <form string="Semana de reporte">
+                <header>
+                    <button name="action_start_capture" type="object" string="Iniciar captura"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_refresh_real" type="object" string="Actualizar real"
+                            invisible="state != 'open'"/>
+                    <button name="action_close" type="object" string="Cerrar semana" class="btn-primary"
+                            invisible="state != 'open'"
+                            confirm="Al cerrar se congela el costo real de esta semana. ¿Continuar?"/>
+                    <button name="action_reopen" type="object" string="Reabrir"
+                            invisible="state != 'closed'" groups="project.group_project_manager"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="date" readonly="state != 'draft'"/>
+                            <field name="previous_week_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="complete_count" string="Proyectos capturados"/>
+                            <field name="planned_total"/>
+                            <field name="real_total"/>
+                            <field name="deviation_total"/>
+                            <field name="real_refresh_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page name="projects" string="Proyectos en análisis">
+                            <!-- Captura en una sola pantalla: una fila por proyecto.
+                                 Las partidas se capturan con el botón "Partidas". -->
+                            <field name="project_line_ids" readonly="state == 'closed'"
+                                   context="{'default_week_id': id}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="analytic_account_id" options="{'no_create': True}"/>
+                                    <field name="neodata_sale"/>
+                                    <field name="neodata_sale_prev" optional="hide"/>
+                                    <field name="neodata_advance"/>
+                                    <field name="planned_total"/>
+                                    <field name="real_total"/>
+                                    <field name="deviation" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                                    <field name="oc_review" optional="hide"/>
+                                    <field name="estimate_review" optional="hide"/>
+                                    <field name="capture_state" widget="badge"
+                                           decoration-success="capture_state == 'complete'"
+                                           decoration-warning="capture_state == 'pending'"/>
+                                    <button name="action_open_capture" type="object" string="Partidas" icon="fa-list"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page name="notes" string="Notas">
+                            <field name="note"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="business_report_week_view_search" model="ir.ui.view">
+        <field name="name">business.report.week.search</field>
+        <field name="model">business.report.week</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <filter string="En captura" name="open" domain="[('state', '=', 'open')]"/>
+                <filter string="Cerradas" name="closed" domain="[('state', '=', 'closed')]"/>
+                <filter string="Fecha de corte" name="date" date="date"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="business_report_week_action" model="ir.actions.act_window">
+        <field name="name">Semanas de reporte</field>
+        <field name="res_model">business.report.week</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea la semana de reporte</p>
+            <p>Captura la fecha de corte y presiona "Iniciar captura": se copian los proyectos de la semana anterior.</p>
+        </field>
+    </record>
+
+    <!-- ================= Proyecto en la semana (captura de partidas) ================= -->
+    <record id="business_report_week_project_view_form" model="ir.ui.view">
+        <field name="name">business.report.week.project.form</field>
+        <field name="model">business.report.week.project</field>
+        <field name="arch" type="xml">
+            <form string="Captura del proyecto">
+                <field name="week_state" invisible="1"/>
+                <field name="currency_id" invisible="1"/>
+                <sheet>
+                    <div class="oe_title">
+                        <h2><field name="analytic_account_id" readonly="1"/></h2>
+                        <field name="week_id" readonly="1"/>
+                    </div>
+                    <group>
+                        <group string="NeoData (captura manual)">
+                            <field name="neodata_sale" readonly="week_state == 'closed'"/>
+                            <field name="neodata_sale_prev" readonly="week_state == 'closed'"/>
+                            <field name="oc_review" readonly="week_state == 'closed'"/>
+                            <field name="estimate_review" readonly="week_state == 'closed'"/>
+                            <field name="note" readonly="week_state == 'closed'"/>
+                        </group>
+                        <group string="Resultado de la semana">
+                            <field name="neodata_advance"/>
+                            <field name="week_cost"/>
+                            <field name="week_difference"/>
+                            <field name="neodata_margin"/>
+                            <field name="neodata_margin_pct" widget="percentage"/>
+                            <field name="deviation"/>
+                        </group>
+                    </group>
+                    <!-- Planeado (NeoData) se captura; real viene de Odoo. -->
+                    <field name="partida_line_ids" readonly="week_state == 'closed'">
+                        <list editable="bottom" create="0" delete="0">
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="partida" readonly="1"/>
+                            <field name="planned_prev" optional="hide"/>
+                            <field name="planned_amount"/>
+                            <field name="planned_delta"/>
+                            <field name="real_prev" optional="hide"/>
+                            <field name="real_amount"/>
+                            <field name="real_delta"/>
+                            <field name="deviation" decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                            <field name="deviation_pct" widget="percentage" optional="show"/>
+                            <field name="week_difference" optional="show"/>
+                            <button name="action_open_entries" type="object" string="Apuntes" icon="fa-search"/>
+                        </list>
+                    </field>
+                </sheet>
+                <footer>
+                    <button string="Guardar" special="save" class="btn-primary"/>
+                    <button string="Cerrar" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
