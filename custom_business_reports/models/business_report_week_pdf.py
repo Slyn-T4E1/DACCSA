@@ -139,6 +139,16 @@ class BusinessReportWeek(models.Model):
         }
 
 
+class BusinessReportWeekProject(models.Model):
+    _inherit = 'business.report.week.project'
+
+    def _report_client(self):
+        """Cliente del proyecto: el de la cuenta analítica o, si no tiene, el del proyecto."""
+        self.ensure_one()
+        partner = self.analytic_account_id.partner_id or self.project_id.partner_id
+        return partner.commercial_partner_id
+
+
 # ======================================================================
 # Datos del PDF
 # ======================================================================
@@ -202,7 +212,7 @@ class ReportWeekDirection(models.AbstractModel):
                 [labels[p] for p in COST_PARTIDAS],
                 [('Planeado (NeoData)', '#2F5BEA', [partidas[p]['planned'] for p in COST_PARTIDAS]),
                  ('Real (Odoo)', '#E8556F', [partidas[p]['real'] for p in COST_PARTIDAS])],
-                height=300),
+                height=240),
             'projects': [self._project_values(line, labels) for line in lines],
         }
         values['trend'] = self._trend(week, lines)
@@ -227,7 +237,7 @@ class ReportWeekDirection(models.AbstractModel):
         """Proyectos agrupados por cliente (contacto de la cuenta analítica)."""
         clients = OrderedDict()
         for line in lines:
-            partner = line.analytic_account_id.partner_id.commercial_partner_id
+            partner = line._report_client()
             clients.setdefault(partner.display_name or _('Sin cliente'), []).append(line)
         return list(clients.items())
 
@@ -250,7 +260,7 @@ class ReportWeekDirection(models.AbstractModel):
         chart = charts.line_chart(labels, [
             ('Balance de costos (planeado − real)', '#2F5BEA', [by_week[d]['balance'] for d in dates]),
             ('Venta semanal (avance NeoData)', '#F59E0B', [by_week[d]['sale'] for d in dates]),
-        ], height=300)
+        ], height=280)
         return {'rows': rows, 'chart': chart}
 
     def _project_values(self, line, labels):
@@ -267,23 +277,23 @@ class ReportWeekDirection(models.AbstractModel):
         ]
         return {
             'line': line,
-            'client': line.analytic_account_id.partner_id.commercial_partner_id.display_name or '',
+            'client': line._report_client().display_name or '',
             'finance_chart': charts.hbar_list(finance_items, width=600),
             'margin_chart': charts.bar_chart(
                 [h.week_date.strftime('%d/%m') for h in history],
                 [('Margen NeoData', '#93C5FD', [h.neodata_margin for h in history])],
-                width=560, height=280),
+                width=560, height=250),
             'cost_chart': charts.bar_chart(
                 [labels.get(p.partida, '') for p in partidas],
                 [('Planeado (NeoData)', '#2F5BEA', partidas.mapped('planned_amount')),
                  ('Real (Odoo)', '#E8556F', partidas.mapped('real_amount'))],
-                width=700, height=300),
+                width=700, height=240),
             'delta_chart': charts.bar_chart(
                 [labels.get(p.partida, '') for p in partidas],
                 [('Δ planeado', '#2F5BEA', partidas.mapped('planned_delta')),
                  ('Δ real', '#93C5FD', partidas.mapped('real_delta')),
                  ('Diferencia', '#10B981', partidas.mapped('week_difference'))],
-                width=1180, height=260),
+                width=1180, height=210),
             'partidas': partidas,
             'labels': labels,
             'history': history,

@@ -35,7 +35,7 @@
 
     <!-- Pie y marca de agua de cada hoja -->
     <template id="report_week_direction_slide_end">
-        <div class="ccr-foot"><t t-esc="footer"/><span class="ccr-foot-right" t-esc="r['long_date']"/></div>
+        <table class="ccr-foot"><tr><td t-esc="footer"/><td class="ccr-foot-right" t-esc="r['long_date']"/></tr></table>
         <div t-if="r['preview']" class="ccr-watermark">VISTA PREVIA · SEMANA EN CAPTURA</div>
     </template>
 

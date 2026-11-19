@@ -34,7 +34,7 @@ medidas y fórmulas.
 Etapa 7, PDF "Reporte Semanal de Dirección": hojas 16:9 con el resumen y una
 sección por proyecto; se guarda en la semana cerrada y se envía por correo.
 """,
-    'version': '19.0.7.0.0',
+    'version': '19.0.7.0.1',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',
