@@ -12,7 +12,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | 1 | 19.0.1.0.0 | Base comercial en CRM: segmento por calidad del lead, grupo de etapa, fecha de cierre editable y automática en Cancelado, último movimiento y días sin movimiento, filtros y columnas | Mauricio |
 | 2 | 19.0.2.0.0 | Seguimiento comercial: menú CRM › Reportes › Seguimiento comercial (gráficas y listados) y tableros "Seguimiento comercial" y "Listados comerciales" en Tableros | Mauricio y Ricardo |
 | 3 | 19.0.3.0.0 | Construcción · base: tipo de partida en posiciones presupuestarias, semanas de reporte, proyectos en análisis y captura semanal con foto del real al cerrar | César |
-| 4 | 19.0.4.0.0 | Construcción · cálculos y detalle por proyecto: balance financiero, márgenes, costos por partida, semana vs anterior, apuntes que forman el real | César |
+| 4 | 19.0.4.0.0 | Construcción · cálculos y detalle por proyecto: valor contrato, estimado autorizado y facturado desde Odoo, balance financiero, márgenes, costos por partida, semana vs anterior, histórico y apuntes | César |
 | 5 | 19.0.5.0.0 | Tablero de Dirección (resumen de todos los proyectos en análisis) | Ricardo y César |
 | 6 | 19.0.6.0.0 | PDF Reporte Semanal de Dirección y ajustes finales | Dirección |
 
@@ -113,3 +113,40 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
    tablero del proyecto (si el presupuesto cubre hasta la fecha de corte).
 5. Capturar venta NeoData y planeado; cerrar la semana; crear la siguiente y
    revisar que arrastre los valores y calcule el costo de la semana.
+
+## Etapa 4 · Qué hace
+
+Detalle por proyecto (botón **Detalle** en la semana, o Proyecto › Reportes › Reporte semanal Dirección › **Proyectos en análisis**).
+
+Datos que se toman de Odoo con **Actualizar real**, hasta la fecha de corte, y que se congelan al cerrar la semana:
+
+| Dato | De dónde sale |
+|---|---|
+| Valor contrato | Líneas de pedidos de venta confirmados con la cuenta analítica del proyecto (fecha del pedido ≤ corte), sin impuestos y sin líneas de anticipo, según el % de la distribución analítica |
+| Estimado autorizado | Apuntes analíticos del proyecto en las cuentas de la posición de Ventas, sin las cuentas marcadas como anticipo de clientes (206.01.01) |
+| Facturado | Facturas menos notas de crédito de cliente publicadas del proyecto, sin impuestos y sin cuentas de anticipo |
+
+Cálculos:
+
+- Restante por estimar = valor contrato − estimado autorizado. % Estimado = estimado / contrato.
+- Margen operativo al momento = estimado autorizado − costo real (5 partidas). % sobre el estimado.
+- Margen NeoData = venta NeoData − costo real (de la Etapa 3).
+- % Margen plan: captura manual, se arrastra a la semana siguiente.
+
+Pantalla de detalle:
+
+- Accesos arriba: **Contrato** (pedidos), **Estimado** (apuntes), **Facturado** (líneas de factura).
+- Pestañas: **Balance financiero**, **Costos** (planeado vs real por partida con botón Apuntes y tendencia semanal del proyecto) y **Semana** (margen semanal y diferencia de costos por partida contra la semana anterior).
+- Botones: **Gráfica de partidas**, **Histórico** (tendencia del proyecto en todas sus semanas) y **Presupuesto por posición**.
+
+Configuración: la cuenta 206.01.01 queda marcada como "Anticipo de clientes (reportes)" al instalar o actualizar. Se puede marcar o desmarcar cualquier cuenta en Contabilidad › Configuración › Plan de cuentas.
+
+Dependencia nueva: `sale`.
+
+## Etapa 4 · Cómo probar
+
+1. Abrir una semana en captura y presionar **Actualizar real**.
+2. En el proyecto, botón **Detalle**: revisar contrato, estimado, facturado y márgenes.
+3. Comparar contra Odoo: Contrato contra los pedidos de venta del proyecto; Estimado contra el real de "Ventas PM" en el presupuesto menos los apuntes de 206.01.01; Facturado contra "Facturas del cliente" en la rentabilidad del proyecto.
+4. Abrir **Estimado** y **Facturado** para ver los apuntes; agrupar por cuenta contable.
+5. Capturar % margen plan, cerrar la semana y crear la siguiente: el % se arrastra y los datos de la semana cerrada no cambian.

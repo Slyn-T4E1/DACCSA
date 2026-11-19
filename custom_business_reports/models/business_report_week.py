@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Reporte Semanal de Dirección · Etapa 3 (base de construcción).
+"""Reporte Semanal de Dirección · Etapas 3 y 4 (construcción).
 
 Tres modelos:
 
@@ -72,6 +72,10 @@ class BusinessReportWeek(models.Model):
     real_total = fields.Monetary(string='Costo real', compute='_compute_totals')
     deviation_total = fields.Monetary(string='Desviación', compute='_compute_totals')
     neodata_advance_total = fields.Monetary(string='Venta semanal NeoData', compute='_compute_totals')
+    # Etapa 4
+    contract_total = fields.Monetary(string='Valor contratos', compute='_compute_totals')
+    estimate_total = fields.Monetary(string='Estimado autorizado', compute='_compute_totals')
+    operating_margin_total = fields.Monetary(string='Margen operativo', compute='_compute_totals')
 
     # Una sola semana por fecha de corte y compañía
     _date_company_uniq = models.Constraint(
@@ -101,7 +105,9 @@ class BusinessReportWeek(models.Model):
             ], order='date desc', limit=1)
 
     @api.depends('project_line_ids.capture_state', 'project_line_ids.planned_total',
-                 'project_line_ids.real_total', 'project_line_ids.neodata_advance')
+                 'project_line_ids.real_total', 'project_line_ids.neodata_advance',
+                 'project_line_ids.contract_amount', 'project_line_ids.estimate_amount',
+                 'project_line_ids.operating_margin')
     def _compute_totals(self):
         for week in self:
             lines = week.project_line_ids
@@ -111,6 +117,9 @@ class BusinessReportWeek(models.Model):
             week.real_total = sum(lines.mapped('real_total'))
             week.deviation_total = week.planned_total - week.real_total
             week.neodata_advance_total = sum(lines.mapped('neodata_advance'))
+            week.contract_total = sum(lines.mapped('contract_amount'))
+            week.estimate_total = sum(lines.mapped('estimate_amount'))
+            week.operating_margin_total = sum(lines.mapped('operating_margin'))
 
     # ------------------------------------------------------------------
     # Botones del flujo
@@ -127,7 +136,8 @@ class BusinessReportWeek(models.Model):
         return True
 
     def action_refresh_real(self):
-        """Recalcula el costo real de todas las partidas hasta la fecha de corte."""
+        """Recalcula desde Odoo, hasta la fecha de corte, el costo real de las
+        partidas y los datos financieros de cada proyecto (Etapa 4)."""
         for week in self:
             if week.state == 'closed':
                 raise UserError(_('La semana %s está cerrada: su real ya no se recalcula.', week.name))
@@ -178,6 +188,7 @@ class BusinessReportWeek(models.Model):
                 'sequence': prev_line.sequence,
                 'analytic_account_id': prev_line.analytic_account_id.id,
                 'neodata_sale_prev': prev_line.neodata_sale,
+                'planned_margin_pct': prev_line.planned_margin_pct,
                 'oc_review': prev_line.oc_review,
                 'estimate_review': prev_line.estimate_review,
                 'partida_line_ids': [Command.create({
@@ -229,10 +240,61 @@ class BusinessReportWeekProject(models.Model):
     oc_review = fields.Monetary(string='OC en revisión')
     estimate_review = fields.Monetary(string='Estimación en revisión')
     note = fields.Char(string='Comentario')
+    planned_margin_pct = fields.Float(
+        string='% Margen plan',
+        aggregator=None,
+        help='Margen planeado del proyecto (captura manual; se arrastra a la semana siguiente).',
+    )
+
+    # ---------------- Datos de Odoo (Etapa 4) ----------------
+    # Igual que el real de las partidas, se toman hasta la fecha de corte con
+    # "Actualizar real" y quedan congelados al cerrar la semana.
+    contract_amount = fields.Monetary(
+        string='Valor contrato', readonly=True,
+        help='Pedidos de venta confirmados del proyecto (cuenta analítica) hasta la fecha de '
+             'corte, sin líneas de anticipo, antes de impuestos.',
+    )
+    estimate_amount = fields.Monetary(
+        string='Estimado autorizado', readonly=True,
+        help='Real de la posición de Ventas del proyecto hasta la fecha de corte, sin los '
+             'apuntes de cuentas de anticipo de clientes (206.01.01).',
+    )
+    invoiced_amount = fields.Monetary(
+        string='Facturado', readonly=True,
+        help='Facturas y notas de crédito de cliente publicadas del proyecto hasta la fecha '
+             'de corte, antes de impuestos y sin anticipos.',
+    )
+    remaining_estimate = fields.Monetary(
+        string='Restante por estimar', compute='_compute_amounts', store=True,
+        help='Valor contrato − estimado autorizado.',
+    )
+    estimate_progress_pct = fields.Float(
+        string='% Estimado', compute='_compute_amounts', store=True,
+        aggregator=None,
+        help='Estimado autorizado / valor contrato.',
+    )
+    operating_margin = fields.Monetary(
+        string='Margen operativo al momento', compute='_compute_amounts', store=True,
+        help='Estimado autorizado − costo real.',
+    )
+    operating_margin_pct = fields.Float(
+        string='% Margen operativo', compute='_compute_amounts', store=True,
+        aggregator=None,
+        help='Margen operativo / estimado autorizado.',
+    )
+    history_line_ids = fields.Many2many(
+        'business.report.week.project', string='Histórico semanal',
+        compute='_compute_history_line_ids',
+        help='El mismo proyecto en esta semana y las anteriores.',
+    )
 
     # ---------------- Partidas ----------------
     partida_line_ids = fields.One2many(
         'business.report.week.partida', 'project_line_id', string='Partidas',
+    )
+    # Mismas partidas, solo lectura, para la pestaña "Semana" del detalle
+    partida_week_ids = fields.One2many(
+        'business.report.week.partida', 'project_line_id', string='Partidas (semana)', readonly=True,
     )
 
     # ---------------- Cálculos ----------------
@@ -260,7 +322,8 @@ class BusinessReportWeekProject(models.Model):
         string='Margen NeoData', compute='_compute_amounts', store=True,
         help='Venta reconocida NeoData − costo real.',
     )
-    neodata_margin_pct = fields.Float(string='% Margen NeoData', compute='_compute_amounts', store=True)
+    neodata_margin_pct = fields.Float(string='% Margen NeoData', compute='_compute_amounts', store=True,
+                                      aggregator=None)
     capture_state = fields.Selection(
         [('pending', 'Pendiente'), ('complete', 'Completo')],
         string='Captura', compute='_compute_amounts', store=True,
@@ -271,6 +334,15 @@ class BusinessReportWeekProject(models.Model):
         'El proyecto ya está en esta semana.',
     )
 
+    @api.depends('analytic_account_id', 'week_date')
+    def _compute_display_name(self):
+        """Nombre en migas de pan y listas: "Proyecto · dd/mm/aaaa"."""
+        for line in self:
+            name = line.analytic_account_id.display_name or ''
+            if line.week_date:
+                name = '%s · %s' % (name, line.week_date.strftime('%d/%m/%Y'))
+            line.display_name = name
+
     @api.depends('analytic_account_id')
     def _compute_project_id(self):
         Project = self.env['project.project'].sudo()
@@ -278,7 +350,7 @@ class BusinessReportWeekProject(models.Model):
             line.project_id = Project.search([('account_id', '=', line.analytic_account_id.id)], limit=1) \
                 if line.analytic_account_id else False
 
-    @api.depends('neodata_sale', 'neodata_sale_prev',
+    @api.depends('neodata_sale', 'neodata_sale_prev', 'contract_amount', 'estimate_amount',
                  'partida_line_ids.planned_amount', 'partida_line_ids.planned_prev',
                  'partida_line_ids.real_amount', 'partida_line_ids.real_prev')
     def _compute_amounts(self):
@@ -296,8 +368,25 @@ class BusinessReportWeekProject(models.Model):
             line.week_difference = line.neodata_advance - line.week_cost
             line.neodata_margin = line.neodata_sale - line.real_total if line.neodata_sale else 0.0
             line.neodata_margin_pct = line.neodata_margin / line.neodata_sale if line.neodata_sale else 0.0
+            # Etapa 4 · balance financiero y margen operativo al momento
+            line.remaining_estimate = line.contract_amount - line.estimate_amount
+            line.estimate_progress_pct = line.estimate_amount / line.contract_amount if line.contract_amount else 0.0
+            line.operating_margin = line.estimate_amount - line.real_total
+            line.operating_margin_pct = line.operating_margin / line.estimate_amount if line.estimate_amount else 0.0
             # Completo: venta NeoData y costo planeado capturados
             line.capture_state = 'complete' if line.neodata_sale and line.planned_total else 'pending'
+
+    @api.depends('analytic_account_id', 'week_date', 'company_id')
+    def _compute_history_line_ids(self):
+        for line in self:
+            if not line.analytic_account_id or not line.week_date:
+                line.history_line_ids = False
+                continue
+            line.history_line_ids = self.search([
+                ('analytic_account_id', '=', line.analytic_account_id.id),
+                ('company_id', '=', line.company_id.id),
+                ('week_date', '<=', line.week_date),
+            ], order='week_date desc', limit=26)
 
     # ------------------------------------------------------------------
     # Altas y protección de semanas cerradas
@@ -333,6 +422,7 @@ class BusinessReportWeekProject(models.Model):
             if not prev_line:
                 continue
             line.neodata_sale_prev = prev_line.neodata_sale
+            line.planned_margin_pct = prev_line.planned_margin_pct
             line.partida_line_ids = [Command.create({
                 'partida': partida.partida,
                 'planned_amount': partida.planned_amount,
@@ -389,17 +479,211 @@ class BusinessReportWeekProject(models.Model):
         return result
 
     def _refresh_real_amounts(self, cutoff):
-        """Escribe el real de cada partida (la "foto" de la semana)."""
+        """Escribe el real de cada partida y los datos financieros (la "foto")."""
         reals = self._get_real_by_partida(cutoff)
         for line in self:
             for partida in line.partida_line_ids:
                 amount = reals[line.id].get(partida.partida, 0.0)
                 if partida.real_amount != amount:
                     partida.with_context(ccr_allow_closed=True).real_amount = amount
+            # Etapa 4: contrato, estimado autorizado y facturado
+            line.with_context(ccr_allow_closed=True).write({
+                'contract_amount': line._get_contract_amount(cutoff),
+                'estimate_amount': line._get_estimate_amount(cutoff),
+                'invoiced_amount': line._get_invoiced_amount(cutoff),
+            })
+
+    # ------------------------------------------------------------------
+    # Datos financieros desde Odoo (Etapa 4)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _distribution_share(distribution, account):
+        """Porcentaje (0-1) de una distribución analítica que va a la cuenta.
+
+        Las llaves pueden ser "id" o "id1,id2" (varias cuentas de distintos
+        planes en la misma línea)."""
+        share = 0.0
+        for key, percent in (distribution or {}).items():
+            if str(account.id) in str(key).split(','):
+                share += (percent or 0.0) / 100.0
+        return share
+
+    def _get_contract_amount(self, cutoff):
+        """Valor contrato: pedidos de venta confirmados con la cuenta analítica
+        del proyecto en sus líneas, con fecha del pedido hasta el corte. Se
+        omiten secciones/notas y líneas de anticipo. Importe sin impuestos en
+        la moneda de la compañía, según el % de la distribución analítica."""
+        self.ensure_one()
+        account = self.analytic_account_id
+        company = self.company_id
+        order_lines = self.env['sale.order.line'].sudo().search([
+            ('analytic_distribution', 'in', [account.id]),
+            ('state', '=', 'sale'),
+            ('display_type', '=', False),
+            ('is_downpayment', '=', False),
+            ('order_id.date_order', '<', fields.Date.add(cutoff, days=1)),
+        ])
+        total = 0.0
+        for order_line in order_lines:
+            order = order_line.order_id
+            amount = order.currency_id._convert(
+                order_line.price_subtotal, company.currency_id, company, order.date_order.date())
+            total += amount * self._distribution_share(order_line.analytic_distribution, account)
+        return company.currency_id.round(total)
+
+    def _get_sales_accounts(self):
+        """Cuentas contables de las posiciones de Ventas del proyecto.
+
+        Primero las de las líneas de presupuesto del proyecto; si el proyecto
+        no tiene línea de Ventas, las de todas las posiciones de Ventas."""
+        self.ensure_one()
+        posts = self.env['budget.lines'].sudo().search([
+            ('analytic_account_id', '=', self.analytic_account_id.id),
+            ('budget_id.state', 'not in', EXCLUDED_BUDGET_STATES),
+            ('general_budget_id.report_partida', '=', 'ventas'),
+        ]).mapped('general_budget_id')
+        if not posts:
+            posts = self.env['account.budget.post'].sudo().search([('report_partida', '=', 'ventas')])
+        return posts.mapped('account_ids').filtered(lambda acc: not acc.report_customer_advance)
+
+    def _estimate_domain(self, cutoff):
+        """Apuntes analíticos que forman el estimado autorizado."""
+        account = self.analytic_account_id
+        return [
+            (account.plan_id._column_name(), '=', account.id),
+            ('date', '<=', cutoff),
+            ('general_account_id', 'in', self._get_sales_accounts().ids),
+        ]
+
+    def _get_estimate_amount(self, cutoff):
+        """Estimado autorizado: real de la posición Ventas sin anticipos.
+        Los ingresos vienen en positivo en la analítica."""
+        self.ensure_one()
+        [(amount,)] = self.env['account.analytic.line'].sudo()._read_group(
+            self._estimate_domain(cutoff), [], ['amount:sum'])
+        return amount or 0.0
+
+    def _invoice_line_domain(self, cutoff):
+        """Líneas de facturas de cliente publicadas del proyecto."""
+        return [
+            ('analytic_distribution', 'in', [self.analytic_account_id.id]),
+            ('parent_state', '=', 'posted'),
+            ('move_id.move_type', 'in', ('out_invoice', 'out_refund')),
+            ('display_type', '=', 'product'),
+            ('date', '<=', cutoff),
+            ('account_id.report_customer_advance', '=', False),
+        ]
+
+    def _get_invoiced_amount(self, cutoff):
+        """Facturado: facturas − notas de crédito de cliente, sin impuestos y
+        sin anticipos, según el % de la distribución analítica."""
+        self.ensure_one()
+        account = self.analytic_account_id
+        lines = self.env['account.move.line'].sudo().search(self._invoice_line_domain(cutoff))
+        total = sum(-line.balance * self._distribution_share(line.analytic_distribution, account)
+                    for line in lines)
+        return self.company_id.currency_id.round(total)
 
     # ------------------------------------------------------------------
     # Botones
     # ------------------------------------------------------------------
+    def action_open_detail(self):
+        """Etapa 4: detalle del proyecto en pantalla completa (balance
+        financiero, costos, semana e histórico)."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'views': [(self.env.ref('custom_business_reports.business_report_week_project_view_form_detail').id, 'form')],
+            'target': 'current',
+            'name': self.analytic_account_id.display_name,
+        }
+
+    def action_open_estimate_entries(self):
+        """Apuntes analíticos que forman el estimado autorizado."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Estimado autorizado · %s', self.analytic_account_id.display_name),
+            'res_model': 'account.analytic.line',
+            'view_mode': 'list,pivot',
+            'domain': self._estimate_domain(self.week_date),
+            'context': {'create': False},
+        }
+
+    def action_open_invoice_lines(self):
+        """Líneas de factura que forman lo facturado."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Facturado · %s', self.analytic_account_id.display_name),
+            'res_model': 'account.move.line',
+            'view_mode': 'list,pivot',
+            'domain': self._invoice_line_domain(self.week_date),
+            'context': {'create': False},
+        }
+
+    def action_open_sale_orders(self):
+        """Pedidos de venta que forman el valor contrato."""
+        self.ensure_one()
+        orders = self.env['sale.order.line'].search([
+            ('analytic_distribution', 'in', [self.analytic_account_id.id]),
+            ('state', '=', 'sale'),
+            ('order_id.date_order', '<', fields.Date.add(self.week_date, days=1)),
+        ]).mapped('order_id')
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Contrato · %s', self.analytic_account_id.display_name),
+            'res_model': 'sale.order',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', orders.ids)],
+            'context': {'create': False},
+        }
+
+    def action_open_budget_lines(self):
+        """Presupuesto por posición del proyecto (planeado y real de Odoo)."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Presupuesto · %s', self.analytic_account_id.display_name),
+            'res_model': 'budget.lines',
+            'view_mode': 'list',
+            'domain': [('analytic_account_id', '=', self.analytic_account_id.id)],
+            'context': {'create': False},
+        }
+
+    def action_open_partida_analysis(self):
+        """Gráfica y tabla dinámica de las partidas del proyecto en la semana."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Partidas · %s', self.analytic_account_id.display_name),
+            'res_model': 'business.report.week.partida',
+            'view_mode': 'graph,pivot,list',
+            'views': [(self.env.ref('custom_business_reports.business_report_week_partida_view_graph').id, 'graph'),
+                      (self.env.ref('custom_business_reports.business_report_week_partida_view_pivot').id, 'pivot'),
+                      (False, 'list')],
+            'domain': [('project_line_id', '=', self.id)],
+            'context': {'create': False},
+        }
+
+    def action_open_history(self):
+        """Tendencia del proyecto en todas sus semanas."""
+        self.ensure_one()
+        action = self.env['ir.actions.act_window']._for_xml_id(
+            'custom_business_reports.business_report_week_project_action')
+        action.update({
+            'name': _('Histórico · %s', self.analytic_account_id.display_name),
+            'domain': [('analytic_account_id', '=', self.analytic_account_id.id)],
+            'context': {'create': False},
+            'view_mode': 'graph,list,pivot',
+            'views': [(self.env.ref('custom_business_reports.business_report_week_project_view_graph_trend').id, 'graph'),
+                      (False, 'list'), (False, 'pivot')],
+        })
+        return action
+
     def action_open_capture(self):
         """Abre el detalle del proyecto para capturar sus partidas."""
         self.ensure_one()
@@ -441,7 +725,7 @@ class BusinessReportWeekPartida(models.Model):
     real_delta = fields.Monetary(string='Δ Real', compute='_compute_deltas', store=True)
     deviation = fields.Monetary(string='Desviación', compute='_compute_deltas', store=True,
                                 help='Planeado − real. Positivo = optimización.')
-    deviation_pct = fields.Float(string='% Desviación', compute='_compute_deltas', store=True)
+    deviation_pct = fields.Float(string='% Desviación', compute='_compute_deltas', store=True, aggregator=None)
     week_difference = fields.Monetary(string='Diferencia semanal', compute='_compute_deltas', store=True,
                                       help='Δ planeado − Δ real de la semana.')
 

@@ -18,14 +18,19 @@ Tableros.
 Etapa 3, Reporte Semanal de Dirección (base): tipo de partida en las
 posiciones presupuestarias y semanas de reporte con proyectos en análisis,
 captura de NeoData y foto del costo real al cerrar la semana.
+
+Etapa 4, detalle por proyecto: valor contrato, estimado autorizado y
+facturado desde Odoo, balance financiero, margen operativo, costos por
+partida, semana actual vs anterior, histórico y accesos a los apuntes.
 """,
-    'version': '19.0.3.0.0',
+    'version': '19.0.4.0.0',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',
     # Etapa 1: CRM. Etapa 2: Tableros (spreadsheet_dashboard).
     # Etapa 3: proyectos y presupuestos por posición (base_account_budget).
-    'depends': ['crm', 'mail', 'spreadsheet_dashboard', 'project', 'analytic', 'base_account_budget'],
+    # Etapa 4: pedidos de venta para el valor contrato (sale).
+    'depends': ['crm', 'mail', 'spreadsheet_dashboard', 'project', 'analytic', 'base_account_budget', 'sale'],
     'data': [
         'security/ir.model.access.csv',
         'views/crm_stage_views.xml',

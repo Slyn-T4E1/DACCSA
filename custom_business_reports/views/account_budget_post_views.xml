@@ -61,4 +61,16 @@
         <field name="search_view_id" ref="view_budget_post_partida_search"/>
         <field name="context">{'search_default_group_partida': 1}</field>
     </record>
+
+    <!-- Etapa 4: marcar cuentas de anticipo de clientes (206.01.01) -->
+    <record id="view_account_form_report_advance" model="ir.ui.view">
+        <field name="name">account.account.form.report.advance</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_form"/>
+        <field name="arch" type="xml">
+            <field name="account_type" position="after">
+                <field name="report_customer_advance"/>
+            </field>
+        </field>
+    </record>
 </odoo>

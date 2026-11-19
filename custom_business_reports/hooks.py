@@ -69,6 +69,10 @@ DEFAULT_PARTIDA_PREFIXES = {
 }
 
 # Palabra en la etiqueta de la calidad (normalizada) -> segmento
+# Etapa 4: cuentas de anticipo de clientes que no cuentan para el
+# "Estimado autorizado" ni para lo "Facturado" (por código contable).
+DEFAULT_ADVANCE_ACCOUNT_CODES = ['206.01.01']
+
 DEFAULT_SEGMENTS = {
     'idoneo': 'sin_recompra',
     'bueno': 'sin_recompra',
@@ -130,6 +134,24 @@ def _setup_partidas(env):
             post.report_partida = partida
             assigned += 1
     _logger.info('Tipo de partida asignado a %s de %s posiciones presupuestarias', assigned, len(posts))
+
+
+def _setup_advance_accounts(env):
+    """Etapa 4: marca las cuentas de anticipo de clientes (206.01.01).
+
+    Se llama al instalar y desde la migración 19.0.4.0.0. El código contable
+    depende de la compañía, por eso se busca en cada una.
+    """
+    Account = env['account.account']
+    marked = Account.browse()
+    for company in env['res.company'].search([]):
+        marked |= Account.with_company(company).search([
+            ('code', 'in', DEFAULT_ADVANCE_ACCOUNT_CODES),
+            ('report_customer_advance', '=', False),
+        ])
+    if marked:
+        marked.write({'report_customer_advance': True})
+    _logger.info('Cuentas de anticipo de clientes marcadas: %s', marked.mapped('display_name'))
 
 
 def _setup_segment_rules(env):
@@ -206,6 +228,7 @@ def post_init_hook(env):
     _setup_stage_groups(env)
     _setup_open_status(env)
     _setup_partidas(env)
+    _setup_advance_accounts(env)
     _setup_segment_rules(env)
     # Paso 3: por si las reglas ya existían, recalcular segmentos.
     env['crm.lead.segment.rule']._recompute_all_leads()

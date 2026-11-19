@@ -39,6 +39,9 @@
               parent="project.menu_project_report" sequence="5"/>
     <menuitem id="menu_week_report_weeks" parent="menu_week_report_root"
               action="business_report_week_action" sequence="10"/>
+    <!-- Etapa 4: histórico de proyectos en análisis -->
+    <menuitem id="menu_week_report_projects" parent="menu_week_report_root"
+              action="business_report_week_project_action" sequence="20"/>
     <!-- Configuración: tipo de partida de las posiciones presupuestarias -->
     <menuitem id="menu_budget_post_partida" name="Partidas de posiciones presupuestarias"
               parent="project.menu_project_config" action="action_budget_post_partida"

@@ -128,3 +128,108 @@ class TestWeekReport(TransactionCase):
                     'Herr': 'equipo_herramienta'}
         for name, partida in expected.items():
             self.assertEqual(posts[name].report_partida, partida, name)
+
+
+@tagged('post_install', '-at_install')
+class TestWeekReportFinance(TransactionCase):
+    """Etapa 4: valor contrato, estimado autorizado, facturado y márgenes."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        env = cls.env
+        Account = env['account.account']
+        cls.cost_account = Account.create({'name': 'CCR Materiales', 'code': 'CCR601', 'account_type': 'expense'})
+        cls.income_account = Account.create({'name': 'CCR Ingresos por obras', 'code': 'CCR401', 'account_type': 'income'})
+        cls.advance_account = Account.create({
+            'name': 'CCR Anticipo de cliente', 'code': 'CCR206', 'account_type': 'liability_current',
+            'report_customer_advance': True,
+        })
+        Post = env['account.budget.post']
+        cost_post = Post.create({'name': 'Materiales F', 'account_ids': [(6, 0, cls.cost_account.ids)],
+                                 'report_partida': 'materiales'})
+        sales_post = Post.create({'name': 'Ventas F', 'report_partida': 'ventas',
+                                  'account_ids': [(6, 0, (cls.income_account | cls.advance_account).ids)]})
+        plan = env['account.analytic.plan'].create({'name': 'CCR Proyectos F'})
+        cls.analytic = env['account.analytic.account'].create({'name': 'CCR Nave', 'plan_id': plan.id})
+        column = plan._column_name()
+        budget = env['budget.budget'].create({
+            'name': 'CCR Presupuesto F', 'date_from': date(2026, 1, 1), 'date_to': date(2026, 12, 31),
+            'budget_line': [(0, 0, {'general_budget_id': post.id, 'analytic_account_id': cls.analytic.id,
+                                    'date_from': date(2026, 1, 1), 'date_to': date(2026, 12, 31),
+                                    'planned_amount': amount})
+                            for post, amount in ((cost_post, -6000), (sales_post, 10000))],
+        })
+        budget.action_budget_confirm()
+        Line = env['account.analytic.line']
+        for amount, account, day in ((-4000, cls.cost_account, date(2026, 3, 1)),
+                                     (7000, cls.income_account, date(2026, 3, 1)),   # estimación
+                                     (500, cls.advance_account, date(2026, 3, 1)),   # anticipo: no cuenta
+                                     (2000, cls.income_account, date(2026, 9, 1))):  # después del corte
+            Line.create({'name': 'CCR', 'amount': amount, 'date': day,
+                         'general_account_id': account.id, column: cls.analytic.id})
+        # Pedidos de venta: uno antes del corte (80% a la cuenta) y otro después
+        partner = env['res.partner'].create({'name': 'CCR Cliente'})
+        product = env['product.product'].create({'name': 'CCR Obra', 'type': 'service', 'list_price': 1})
+        cls.orders = env['sale.order']
+        for amount, day in ((10000, '2026-02-01 10:00:00'), (3000, '2026-09-01 10:00:00')):
+            order = env['sale.order'].create({
+                'partner_id': partner.id, 'date_order': day,
+                'order_line': [(0, 0, {'product_id': product.id, 'product_uom_qty': 1, 'price_unit': amount,
+                                       'tax_ids': [(5, 0, 0)],
+                                       'analytic_distribution': {str(cls.analytic.id): 80}})],
+            })
+            order.action_confirm()
+            order.date_order = day   # confirmar cambia la fecha del pedido
+            cls.orders |= order
+        # Factura de cliente publicada antes del corte: 6000 de obra
+        invoice = env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': partner.id, 'invoice_date': date(2026, 3, 15),
+            'invoice_line_ids': [(0, 0, {'name': 'Estimación 1', 'quantity': 1, 'price_unit': 6000,
+                                         'account_id': cls.income_account.id, 'tax_ids': [(5, 0, 0)],
+                                         'analytic_distribution': {str(cls.analytic.id): 100}})],
+        })
+        invoice.action_post()
+
+    def test_finance_amounts(self):
+        week = self.env['business.report.week'].create({'date': date(2026, 4, 30)})
+        line = self.env['business.report.week.project'].create({
+            'week_id': week.id, 'analytic_account_id': self.analytic.id,
+        })
+        week.action_start_capture()
+        self.assertAlmostEqual(line.contract_amount, 8000)            # 80% de 10000; el de sept. no
+        # Estimado: ingresos analíticos hasta el corte sin anticipos. La
+        # factura también generó apunte analítico de 6000 en la cuenta de ingresos.
+        self.assertAlmostEqual(line.estimate_amount, 13000)           # 7000 + 6000
+        self.assertAlmostEqual(line.invoiced_amount, 6000)
+        self.assertAlmostEqual(line.real_total, 4000)
+        self.assertAlmostEqual(line.remaining_estimate, 8000 - 13000)
+        self.assertAlmostEqual(line.operating_margin, 9000)           # 13000 − 4000
+        self.assertAlmostEqual(line.operating_margin_pct, 9000 / 13000)
+        self.assertIn(line, line.history_line_ids)
+        # Los accesos abren sin errores
+        for method in ('action_open_detail', 'action_open_estimate_entries', 'action_open_invoice_lines',
+                       'action_open_sale_orders', 'action_open_budget_lines', 'action_open_partida_analysis',
+                       'action_open_history'):
+            self.assertTrue(getattr(line, method)(), method)
+        self.assertEqual(line.action_open_sale_orders()['domain'], [('id', 'in', self.orders[:1].ids)])
+
+    def test_finance_frozen_and_carry_over(self):
+        """Al cerrar, los datos financieros quedan congelados; el % plan se arrastra."""
+        Week = self.env['business.report.week']
+        week1 = Week.create({'date': date(2026, 4, 30)})
+        line1 = self.env['business.report.week.project'].create({
+            'week_id': week1.id, 'analytic_account_id': self.analytic.id, 'planned_margin_pct': 0.1884,
+        })
+        week1.action_start_capture()
+        line1.neodata_sale = 12000
+        line1.partida_line_ids.filtered(lambda p: p.partida == 'materiales').planned_amount = 5000
+        week1.action_close()
+        week2 = Week.create({'date': date(2026, 9, 30)})
+        week2.action_start_capture()
+        line2 = week2.project_line_ids
+        self.assertAlmostEqual(line2.planned_margin_pct, 0.1884)
+        self.assertAlmostEqual(line2.contract_amount, 8000 + 2400)
+        self.assertAlmostEqual(line2.estimate_amount, 15000)
+        self.assertAlmostEqual(line1.estimate_amount, 13000, msg='La semana cerrada no cambia')
+        self.assertEqual(line2.history_line_ids, line2 | line1)

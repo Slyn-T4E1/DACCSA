@@ -7,4 +7,5 @@ from . import crm_lead_segment_rule
 from . import crm_lead
 from . import mail_activity
 from . import account_budget_post
+from . import account_account
 from . import business_report_week
