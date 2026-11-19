@@ -9,3 +9,4 @@ from . import mail_activity
 from . import account_budget_post
 from . import account_account
 from . import business_report_week
+from . import business_report_dashboard

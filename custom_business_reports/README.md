@@ -13,7 +13,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | 2 | 19.0.2.0.0 | Seguimiento comercial: menú CRM › Reportes › Seguimiento comercial (gráficas y listados) y tableros "Seguimiento comercial" y "Listados comerciales" en Tableros | Mauricio y Ricardo |
 | 3 | 19.0.3.0.0 | Construcción · base: tipo de partida en posiciones presupuestarias, semanas de reporte, proyectos en análisis y captura semanal con foto del real al cerrar | César |
 | 4 | 19.0.4.0.0 | Construcción · cálculos y detalle por proyecto: valor contrato, estimado autorizado y facturado desde Odoo, balance financiero, márgenes, costos por partida, semana vs anterior, histórico y apuntes | César |
-| 5 | 19.0.5.0.0 | Tablero de Dirección (resumen de todos los proyectos en análisis) | Ricardo y César |
+| 5 | 19.0.5.0.0 | Tablero de Dirección: semana vigente, tablero en Tableros, pestaña Resumen por semana, gráficas de costos y tendencia, alerta de margen bajo | Ricardo y César |
 | 6 | 19.0.6.0.0 | PDF Reporte Semanal de Dirección y ajustes finales | Dirección |
 
 ## Etapa 1 · Qué hace
@@ -150,3 +150,30 @@ Dependencia nueva: `sale`.
 3. Comparar contra Odoo: Contrato contra los pedidos de venta del proyecto; Estimado contra el real de "Ventas PM" en el presupuesto menos los apuntes de 206.01.01; Facturado contra "Facturas del cliente" en la rentabilidad del proyecto.
 4. Abrir **Estimado** y **Facturado** para ver los apuntes; agrupar por cuenta contable.
 5. Capturar % margen plan, cerrar la semana y crear la siguiente: el % se arrastra y los datos de la semana cerrada no cambian.
+
+## Etapa 5 · Qué hace
+
+Tablero de Dirección con el resumen de todos los proyectos en análisis.
+
+**Semana vigente**: la última semana cerrada (si aún no hay cerradas, la última semana). Se marca sola al cerrar, reabrir o crear semanas.
+
+**Tablero "Reporte semanal Dirección"** (Tableros › Dirección y comercial, o Proyecto › Reportes › Reporte semanal Dirección › Tablero de Dirección). Muestra la semana vigente:
+
+- Indicadores: costo planeado, costo real, desviación (% de optimización), cambio de la desviación vs la semana anterior, venta semanal (Σ avance NeoData) y margen operativo global.
+- Gráfica "Balance de costos por partida": planeado vs real por partida, suma de todos los proyectos.
+- Gráfica "Indicadores de costos y venta por semana": balance de costos (planeado − real) y venta semanal de todas las semanas.
+- Tabla "Balance de costos por partida" con diferencia, % y cambios contra la semana anterior (verde = optimización, rojo = sobrecosto).
+- Tabla "Margen operativo al momento – proyectos": venta real (estimado autorizado), costo real, margen y %; en rojo los proyectos bajo la alerta de margen.
+- Filtro "Proyecto" para quitar o dejar solo algunos proyectos.
+
+**Pestaña "Resumen" en cada semana** (sirve para ver semanas anteriores): los mismos indicadores, el balance por partida y el margen por proyecto (con botón Detalle). Botones **Gráfica de costos**, **Tendencia** y **Tablero**. El campo **Alerta de margen bajo** (15 % por omisión) se captura en la semana y pasa a la siguiente.
+
+El tablero se genera con `tools/generate_week_report_dashboard.py`; los cambios hechos en pantalla se pierden al actualizar el módulo.
+
+## Etapa 5 · Cómo probar
+
+1. Cerrar una semana con proyectos capturados: queda como "Semana vigente".
+2. Abrir Tableros › Dirección y comercial › Reporte semanal Dirección y comparar los indicadores contra la pestaña Resumen de esa semana.
+3. Usar el filtro Proyecto para quitar un proyecto y revisar que cambien las tablas y gráficas.
+4. Cambiar la alerta de margen en la semana (antes de cerrarla) y revisar los proyectos en rojo.
+5. En una semana anterior, abrir la pestaña Resumen y los botones Gráfica de costos y Tendencia.

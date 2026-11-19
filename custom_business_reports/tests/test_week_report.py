@@ -8,8 +8,8 @@ from odoo.tests import TransactionCase, tagged
 from odoo.addons.custom_business_reports.hooks import _setup_partidas
 
 
-@tagged('post_install', '-at_install')
-class TestWeekReport(TransactionCase):
+class WeekReportCase(TransactionCase):
+    """Datos comunes: posición de Materiales, proyecto y apuntes."""
 
     @classmethod
     def setUpClass(cls):
@@ -52,6 +52,10 @@ class TestWeekReport(TransactionCase):
 
     def _materiales(self, project_line):
         return project_line.partida_line_ids.filtered(lambda p: p.partida == 'materiales')
+
+
+@tagged('post_install', '-at_install')
+class TestWeekReport(WeekReportCase):
 
     def test_real_with_cutoff(self):
         """El real solo toma apuntes hasta la fecha de corte y de las cuentas de la posición."""
@@ -233,3 +237,82 @@ class TestWeekReportFinance(TransactionCase):
         self.assertAlmostEqual(line2.estimate_amount, 15000)
         self.assertAlmostEqual(line1.estimate_amount, 13000, msg='La semana cerrada no cambia')
         self.assertEqual(line2.history_line_ids, line2 | line1)
+
+
+@tagged('post_install', '-at_install')
+class TestWeekDashboard(WeekReportCase):
+    """Etapa 5: semana vigente, resumen por partida, alertas y tablero."""
+
+    def setUp(self):
+        super().setUp()
+        # Semanas que ya existan en la base no deben estorbar: se pasan a otra compañía
+        Week = self.env['business.report.week']
+        other = self.env['res.company'].create({'name': 'CCR otra compañía'})
+        Week.search([]).write({'company_id': other.id})
+
+    def _week_with_line(self, day, sale, planned):
+        week = self._new_week(day)
+        week.action_start_capture()
+        line = week.project_line_ids or self.env['business.report.week.project'].create({
+            'week_id': week.id, 'analytic_account_id': self.analytic.id})
+        week.action_refresh_real()
+        line.neodata_sale = sale
+        self._materiales(line).planned_amount = planned
+        return week, line
+
+    def test_current_week(self):
+        Week = self.env['business.report.week']
+        week1, _line1 = self._week_with_line(date(2030, 4, 30), 10000, 2000)
+        self.assertTrue(week1.is_current, 'Sin semanas cerradas, la última es la vigente')
+        week1.action_close()
+        week2, line2 = self._week_with_line(date(2030, 7, 1), 10800, 2100)
+        self.assertTrue(week1.is_current, 'La vigente es la última cerrada')
+        self.assertFalse(week2.is_current)
+        self.assertFalse(line2.week_is_current)
+        week2.action_close()
+        self.assertTrue(week2.is_current)
+        self.assertTrue(line2.week_is_current)
+        self.assertTrue(all(line2.partida_line_ids.mapped('week_is_current')))
+        self.assertFalse(week1.is_current)
+        self.assertEqual(Week.search_count([('is_current', '=', True),
+                                            ('company_id', '=', self.env.company.id)]), 1)
+
+    def test_summary_and_alert(self):
+        week, line = self._week_with_line(date(2030, 4, 30), 10000, 2000)
+        self.env.flush_all()
+        self.env.invalidate_all()
+        summary = week.partida_summary_ids.filtered(lambda s: s.partida == 'materiales')
+        # Corte 2030: entran los dos apuntes de materiales (1000 + 500)
+        self.assertAlmostEqual(summary.planned_amount, 2000)
+        self.assertAlmostEqual(summary.real_amount, 1500)
+        self.assertAlmostEqual(summary.deviation, 500)
+        self.assertAlmostEqual(summary.deviation_pct, 0.25)
+        self.assertAlmostEqual(week.deviation_pct_total, 0.25)
+        # Gráficas: planeado y real en renglones separados; tendencia por semana
+        cost = self.env['business.report.dashboard.cost'].search([('week_id', '=', week.id),
+                                                                   ('partida', '=', 'materiales')])
+        self.assertEqual(sorted(cost.mapped('amount')), [1500, 2000])
+        trend = self.env['business.report.dashboard.trend'].search([('week_id', '=', week.id)])
+        self.assertEqual(dict((t.serie, t.amount) for t in trend), {'1_balance': 500, '2_sale': 10000})  # sin semana anterior, el avance es toda la venta
+        # Sin estimado autorizado no hay alerta de margen
+        self.assertFalse(line.margin_alert)
+        for method in ('action_open_cost_chart', 'action_open_trend_chart', 'action_open_dashboard'):
+            self.assertTrue(getattr(week, method)(), method)
+
+    def test_week_dashboard_loaded(self):
+        """El tablero existe y sus fuentes de datos apuntan a campos reales."""
+        import base64
+        import json
+        dashboard = self.env.ref('custom_business_reports.spreadsheet_dashboard_week_report')
+        data = json.loads(base64.b64decode(dashboard.spreadsheet_binary_data))
+        for pivot in data['pivots'].values():
+            model = self.env[pivot['model']]
+            for item in pivot['rows'] + pivot['measures']:
+                self.assertIn(item['fieldName'], model._fields, item['fieldName'])
+        for figure in data['sheets'][0]['figures']:
+            meta = figure['data'].get('metaData')
+            if meta:
+                model = self.env[meta['resModel']]
+                for group in meta['groupBy']:
+                    self.assertIn(group.split(':')[0], model._fields, group)
+                self.assertIn(meta['measure'], model._fields)

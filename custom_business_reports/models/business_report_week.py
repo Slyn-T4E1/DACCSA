@@ -77,11 +77,72 @@ class BusinessReportWeek(models.Model):
     estimate_total = fields.Monetary(string='Estimado autorizado', compute='_compute_totals')
     operating_margin_total = fields.Monetary(string='Margen operativo', compute='_compute_totals')
 
+    # Etapa 5 · Tablero de Dirección
+    is_current = fields.Boolean(
+        string='Semana vigente', readonly=True, copy=False, index=True,
+        help='La última semana cerrada (o la última semana si aún no hay cerradas). '
+             'Es la que muestra el tablero "Reporte semanal Dirección" en Tableros.',
+    )
+    margin_alert_pct = fields.Float(
+        string='Alerta de margen bajo', default=lambda self: self._default_margin_alert_pct(),
+        aggregator=None,
+        help='Los proyectos con margen operativo menor a este porcentaje se marcan en rojo.',
+    )
+    deviation_pct_total = fields.Float(string='% Optimización', compute='_compute_totals', aggregator=None,
+                                       help='Desviación / costo planeado.')
+    deviation_delta_total = fields.Monetary(
+        string='Desviación vs semana anterior', compute='_compute_totals',
+        help='Cambio de la desviación respecto a la semana anterior (Δ planeado − Δ real).')
+    operating_margin_pct_total = fields.Float(string='% Margen operativo global', compute='_compute_totals',
+                                              aggregator=None)
+    partida_summary_ids = fields.One2many(
+        'business.report.week.partida.summary', 'week_id', string='Balance de costos por partida', readonly=True)
+    # Mismos proyectos, solo lectura, para la tabla de márgenes del resumen
+    project_margin_ids = fields.One2many(
+        'business.report.week.project', 'week_id', string='Margen operativo por proyecto', readonly=True)
+
     # Una sola semana por fecha de corte y compañía
     _date_company_uniq = models.Constraint(
         'UNIQUE(company_id, date)',
         'Ya existe una semana de reporte con esa fecha de corte.',
     )
+
+    # ------------------------------------------------------------------
+    # Semana vigente (Etapa 5)
+    # ------------------------------------------------------------------
+    def _default_margin_alert_pct(self):
+        """Toma la alerta de la última semana; la primera vez, 15 %."""
+        last = self.search([('company_id', '=', self.env.company.id)], order='date desc', limit=1)
+        return (last.margin_alert_pct or 0.15) if last else 0.15
+
+    @api.model
+    def _update_current_weeks(self):
+        """Marca como vigente la última semana cerrada de cada compañía (o la
+        última semana si no hay cerradas). El tablero en Tableros muestra esa."""
+        weeks = self.sudo().search([])
+        current = self.browse()
+        for company in weeks.company_id:
+            company_weeks = weeks.filtered(lambda w: w.company_id == company).sorted('date', reverse=True)
+            closed = company_weeks.filtered(lambda w: w.state == 'closed')
+            current |= (closed or company_weeks)[:1]
+        to_unset = weeks.filtered('is_current') - current
+        if to_unset:
+            to_unset.write({'is_current': False})
+        to_set = current.filtered(lambda w: not w.is_current)
+        if to_set:
+            to_set.write({'is_current': True})
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        weeks = super().create(vals_list)
+        self._update_current_weeks()
+        return weeks
+
+    def write(self, vals):
+        res = super().write(vals)
+        if {'state', 'date', 'company_id'} & set(vals):
+            self._update_current_weeks()
+        return res
 
     # ------------------------------------------------------------------
     # Cálculos
@@ -107,7 +168,7 @@ class BusinessReportWeek(models.Model):
     @api.depends('project_line_ids.capture_state', 'project_line_ids.planned_total',
                  'project_line_ids.real_total', 'project_line_ids.neodata_advance',
                  'project_line_ids.contract_amount', 'project_line_ids.estimate_amount',
-                 'project_line_ids.operating_margin')
+                 'project_line_ids.operating_margin', 'project_line_ids.partida_line_ids.week_difference')
     def _compute_totals(self):
         for week in self:
             lines = week.project_line_ids
@@ -120,6 +181,11 @@ class BusinessReportWeek(models.Model):
             week.contract_total = sum(lines.mapped('contract_amount'))
             week.estimate_total = sum(lines.mapped('estimate_amount'))
             week.operating_margin_total = sum(lines.mapped('operating_margin'))
+            # Etapa 5
+            week.deviation_pct_total = week.deviation_total / week.planned_total if week.planned_total else 0.0
+            week.deviation_delta_total = sum(lines.mapped('partida_line_ids.week_difference'))
+            week.operating_margin_pct_total = (
+                week.operating_margin_total / week.estimate_total if week.estimate_total else 0.0)
 
     # ------------------------------------------------------------------
     # Botones del flujo
@@ -203,7 +269,42 @@ class BusinessReportWeek(models.Model):
     def unlink(self):
         if any(week.state != 'draft' for week in self):
             raise UserError(_('Solo se pueden borrar semanas en borrador.'))
-        return super().unlink()
+        res = super().unlink()
+        self.env['business.report.week']._update_current_weeks()
+        return res
+
+    # ------------------------------------------------------------------
+    # Gráficas y tablero (Etapa 5)
+    # ------------------------------------------------------------------
+    def action_open_cost_chart(self):
+        """Planeado vs real por partida de todos los proyectos de la semana."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Balance de costos por partida · %s', self.name),
+            'res_model': 'business.report.dashboard.cost',
+            'view_mode': 'graph,pivot',
+            'domain': [('week_id', '=', self.id)],
+            'context': {'create': False},
+        }
+
+    def action_open_trend_chart(self):
+        """Balance de costos y venta semanal de esta semana y las anteriores."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Indicadores de costos y venta'),
+            'res_model': 'business.report.dashboard.trend',
+            'view_mode': 'graph,pivot',
+            'domain': [('company_id', '=', self.company_id.id), ('week_date', '<=', self.date)],
+            'context': {'create': False, 'fill_temporal': False},
+        }
+
+    def action_open_dashboard(self):
+        """Abre el tablero "Reporte semanal Dirección" en Tableros."""
+        action = self.env['ir.actions.actions']._for_xml_id('spreadsheet_dashboard.ir_actions_dashboard_action')
+        action['params'] = {'dashboard_id': self.env.ref('custom_business_reports.spreadsheet_dashboard_week_report').id}
+        return action
 
 
 # ======================================================================
@@ -218,6 +319,7 @@ class BusinessReportWeekProject(models.Model):
                               ondelete='cascade', index=True)
     week_state = fields.Selection(related='week_id.state', string='Estado de la semana')
     week_date = fields.Date(related='week_id.date', string='Fecha de corte', store=True)
+    week_is_current = fields.Boolean(related='week_id.is_current', string='Semana vigente', store=True)
     company_id = fields.Many2one(related='week_id.company_id', store=True)
     currency_id = fields.Many2one(related='week_id.currency_id')
     sequence = fields.Integer(default=10)
@@ -282,6 +384,9 @@ class BusinessReportWeekProject(models.Model):
         aggregator=None,
         help='Margen operativo / estimado autorizado.',
     )
+    margin_alert = fields.Boolean(
+        string='Margen bajo', compute='_compute_margin_alert',
+        help='Margen operativo menor a la alerta de la semana.')
     history_line_ids = fields.Many2many(
         'business.report.week.project', string='Histórico semanal',
         compute='_compute_history_line_ids',
@@ -375,6 +480,12 @@ class BusinessReportWeekProject(models.Model):
             line.operating_margin_pct = line.operating_margin / line.estimate_amount if line.estimate_amount else 0.0
             # Completo: venta NeoData y costo planeado capturados
             line.capture_state = 'complete' if line.neodata_sale and line.planned_total else 'pending'
+
+    @api.depends('operating_margin_pct', 'estimate_amount', 'week_id.margin_alert_pct')
+    def _compute_margin_alert(self):
+        for line in self:
+            line.margin_alert = bool(line.estimate_amount) and \
+                line.operating_margin_pct < line.week_id.margin_alert_pct
 
     @api.depends('analytic_account_id', 'week_date', 'company_id')
     def _compute_history_line_ids(self):
@@ -677,7 +788,7 @@ class BusinessReportWeekProject(models.Model):
         action.update({
             'name': _('Histórico · %s', self.analytic_account_id.display_name),
             'domain': [('analytic_account_id', '=', self.analytic_account_id.id)],
-            'context': {'create': False},
+            'context': {'create': False, 'fill_temporal': False},
             'view_mode': 'graph,list,pivot',
             'views': [(self.env.ref('custom_business_reports.business_report_week_project_view_graph_trend').id, 'graph'),
                       (False, 'list'), (False, 'pivot')],
@@ -710,6 +821,7 @@ class BusinessReportWeekPartida(models.Model):
                                       required=True, ondelete='cascade', index=True)
     week_id = fields.Many2one(related='project_line_id.week_id', store=True)
     week_date = fields.Date(related='project_line_id.week_date', store=True)
+    week_is_current = fields.Boolean(related='project_line_id.week_is_current', string='Semana vigente', store=True)
     analytic_account_id = fields.Many2one(related='project_line_id.analytic_account_id', store=True)
     currency_id = fields.Many2one(related='project_line_id.currency_id')
     partida = fields.Selection(COST_PARTIDA_SELECTION, string='Partida', required=True)

@@ -5,3 +5,6 @@ access_business_report_week_user,business.report.week usuario,model_business_rep
 access_business_report_week_manager,business.report.week gerente,model_business_report_week,project.group_project_manager,1,1,1,1
 access_business_report_week_project_user,business.report.week.project usuario,model_business_report_week_project,project.group_project_user,1,1,1,1
 access_business_report_week_partida_user,business.report.week.partida usuario,model_business_report_week_partida,project.group_project_user,1,1,1,1
+access_business_report_week_partida_summary_user,business.report.week.partida.summary usuario,model_business_report_week_partida_summary,project.group_project_user,1,0,0,0
+access_business_report_dashboard_cost_user,business.report.dashboard.cost usuario,model_business_report_dashboard_cost,project.group_project_user,1,0,0,0
+access_business_report_dashboard_trend_user,business.report.dashboard.trend usuario,model_business_report_dashboard_trend,project.group_project_user,1,0,0,0

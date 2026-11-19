@@ -1,0 +1,870 @@
+{
+ "version": "18.5.10",
+ "sheets": [
+  {
+   "id": "ccr-wk-sheet-main",
+   "name": "Reporte semanal Dirección",
+   "colNumber": 10,
+   "rowNumber": 58,
+   "rows": {
+    "0": {
+     "size": 40
+    }
+   },
+   "cols": {
+    "0": {
+     "size": 300
+    },
+    "1": {
+     "size": 150
+    },
+    "2": {
+     "size": 150
+    },
+    "3": {
+     "size": 150
+    },
+    "4": {
+     "size": 110
+    },
+    "5": {
+     "size": 170
+    },
+    "6": {
+     "size": 170
+    }
+   },
+   "merges": [],
+   "cells": {
+    "A1": "Reporte Semanal de Dirección · Proyectos en curso",
+    "A2": "=\"Semana vigente: \"&Datos!B13&\"   ·   Para otra semana: Proyecto › Reportes › Semanas de reporte › Resumen\"",
+    "A8": "Balance de costos por partida y tendencia semanal",
+    "A28": "Balance de costos por partida (Σ proyectos en análisis)",
+    "A29": "Posición",
+    "B29": "Planeado",
+    "C29": "Real",
+    "D29": "Diferencia",
+    "E29": "%",
+    "F29": "Δ planeado vs sem. ant.",
+    "G29": "Δ real vs sem. ant.",
+    "A30": "Materiales",
+    "B30": "=IFERROR(PIVOT.VALUE(1,\"planned_amount\",\"partida\",\"materiales\"),0)",
+    "C30": "=IFERROR(PIVOT.VALUE(1,\"real_amount\",\"partida\",\"materiales\"),0)",
+    "D30": "=B30-C30",
+    "E30": "=IFERROR(D30/B30,0)",
+    "F30": "=IFERROR(PIVOT.VALUE(1,\"planned_delta\",\"partida\",\"materiales\"),0)",
+    "G30": "=IFERROR(PIVOT.VALUE(1,\"real_delta\",\"partida\",\"materiales\"),0)",
+    "A31": "Mano de obra",
+    "B31": "=IFERROR(PIVOT.VALUE(1,\"planned_amount\",\"partida\",\"mano_obra\"),0)",
+    "C31": "=IFERROR(PIVOT.VALUE(1,\"real_amount\",\"partida\",\"mano_obra\"),0)",
+    "D31": "=B31-C31",
+    "E31": "=IFERROR(D31/B31,0)",
+    "F31": "=IFERROR(PIVOT.VALUE(1,\"planned_delta\",\"partida\",\"mano_obra\"),0)",
+    "G31": "=IFERROR(PIVOT.VALUE(1,\"real_delta\",\"partida\",\"mano_obra\"),0)",
+    "A32": "Subcontratistas",
+    "B32": "=IFERROR(PIVOT.VALUE(1,\"planned_amount\",\"partida\",\"subcontratistas\"),0)",
+    "C32": "=IFERROR(PIVOT.VALUE(1,\"real_amount\",\"partida\",\"subcontratistas\"),0)",
+    "D32": "=B32-C32",
+    "E32": "=IFERROR(D32/B32,0)",
+    "F32": "=IFERROR(PIVOT.VALUE(1,\"planned_delta\",\"partida\",\"subcontratistas\"),0)",
+    "G32": "=IFERROR(PIVOT.VALUE(1,\"real_delta\",\"partida\",\"subcontratistas\"),0)",
+    "A33": "Equipo y herramienta",
+    "B33": "=IFERROR(PIVOT.VALUE(1,\"planned_amount\",\"partida\",\"equipo_herramienta\"),0)",
+    "C33": "=IFERROR(PIVOT.VALUE(1,\"real_amount\",\"partida\",\"equipo_herramienta\"),0)",
+    "D33": "=B33-C33",
+    "E33": "=IFERROR(D33/B33,0)",
+    "F33": "=IFERROR(PIVOT.VALUE(1,\"planned_delta\",\"partida\",\"equipo_herramienta\"),0)",
+    "G33": "=IFERROR(PIVOT.VALUE(1,\"real_delta\",\"partida\",\"equipo_herramienta\"),0)",
+    "A34": "Indirectos",
+    "B34": "=IFERROR(PIVOT.VALUE(1,\"planned_amount\",\"partida\",\"indirectos\"),0)",
+    "C34": "=IFERROR(PIVOT.VALUE(1,\"real_amount\",\"partida\",\"indirectos\"),0)",
+    "D34": "=B34-C34",
+    "E34": "=IFERROR(D34/B34,0)",
+    "F34": "=IFERROR(PIVOT.VALUE(1,\"planned_delta\",\"partida\",\"indirectos\"),0)",
+    "G34": "=IFERROR(PIVOT.VALUE(1,\"real_delta\",\"partida\",\"indirectos\"),0)",
+    "A35": "Sumatoria",
+    "B35": "=SUM(B30:B34)",
+    "C35": "=SUM(C30:C34)",
+    "D35": "=SUM(D30:D34)",
+    "F35": "=SUM(F30:F34)",
+    "G35": "=SUM(G30:G34)",
+    "E35": "=IFERROR(D35/B35,0)",
+    "A38": "Margen operativo al momento – proyectos",
+    "E38": "=\"Rojo: margen menor a \"&TEXT(Datos!B12,\"0%\")&\" (se cambia en la semana)\"",
+    "A39": "Proyecto",
+    "B39": "Venta real",
+    "C39": "Costo real",
+    "D39": "Margen operativo",
+    "E39": "% Margen",
+    "A40": "Resultado global",
+    "B40": "=Datos!B8",
+    "C40": "=Datos!B9",
+    "D40": "=Datos!B10",
+    "E40": "=Datos!B11",
+    "A41": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",1),\"\")",
+    "B41": "=IF(A41=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",1),0))",
+    "C41": "=IF(A41=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",1),0))",
+    "D41": "=IF(A41=\"\",\"\",B41-C41)",
+    "E41": "=IF(A41=\"\",\"\",IFERROR(D41/B41,0))",
+    "A42": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",2),\"\")",
+    "B42": "=IF(A42=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",2),0))",
+    "C42": "=IF(A42=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",2),0))",
+    "D42": "=IF(A42=\"\",\"\",B42-C42)",
+    "E42": "=IF(A42=\"\",\"\",IFERROR(D42/B42,0))",
+    "A43": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",3),\"\")",
+    "B43": "=IF(A43=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",3),0))",
+    "C43": "=IF(A43=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",3),0))",
+    "D43": "=IF(A43=\"\",\"\",B43-C43)",
+    "E43": "=IF(A43=\"\",\"\",IFERROR(D43/B43,0))",
+    "A44": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",4),\"\")",
+    "B44": "=IF(A44=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",4),0))",
+    "C44": "=IF(A44=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",4),0))",
+    "D44": "=IF(A44=\"\",\"\",B44-C44)",
+    "E44": "=IF(A44=\"\",\"\",IFERROR(D44/B44,0))",
+    "A45": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",5),\"\")",
+    "B45": "=IF(A45=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",5),0))",
+    "C45": "=IF(A45=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",5),0))",
+    "D45": "=IF(A45=\"\",\"\",B45-C45)",
+    "E45": "=IF(A45=\"\",\"\",IFERROR(D45/B45,0))",
+    "A46": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",6),\"\")",
+    "B46": "=IF(A46=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",6),0))",
+    "C46": "=IF(A46=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",6),0))",
+    "D46": "=IF(A46=\"\",\"\",B46-C46)",
+    "E46": "=IF(A46=\"\",\"\",IFERROR(D46/B46,0))",
+    "A47": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",7),\"\")",
+    "B47": "=IF(A47=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",7),0))",
+    "C47": "=IF(A47=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",7),0))",
+    "D47": "=IF(A47=\"\",\"\",B47-C47)",
+    "E47": "=IF(A47=\"\",\"\",IFERROR(D47/B47,0))",
+    "A48": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",8),\"\")",
+    "B48": "=IF(A48=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",8),0))",
+    "C48": "=IF(A48=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",8),0))",
+    "D48": "=IF(A48=\"\",\"\",B48-C48)",
+    "E48": "=IF(A48=\"\",\"\",IFERROR(D48/B48,0))",
+    "A49": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",9),\"\")",
+    "B49": "=IF(A49=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",9),0))",
+    "C49": "=IF(A49=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",9),0))",
+    "D49": "=IF(A49=\"\",\"\",B49-C49)",
+    "E49": "=IF(A49=\"\",\"\",IFERROR(D49/B49,0))",
+    "A50": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",10),\"\")",
+    "B50": "=IF(A50=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",10),0))",
+    "C50": "=IF(A50=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",10),0))",
+    "D50": "=IF(A50=\"\",\"\",B50-C50)",
+    "E50": "=IF(A50=\"\",\"\",IFERROR(D50/B50,0))",
+    "A51": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",11),\"\")",
+    "B51": "=IF(A51=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",11),0))",
+    "C51": "=IF(A51=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",11),0))",
+    "D51": "=IF(A51=\"\",\"\",B51-C51)",
+    "E51": "=IF(A51=\"\",\"\",IFERROR(D51/B51,0))",
+    "A52": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",12),\"\")",
+    "B52": "=IF(A52=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",12),0))",
+    "C52": "=IF(A52=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",12),0))",
+    "D52": "=IF(A52=\"\",\"\",B52-C52)",
+    "E52": "=IF(A52=\"\",\"\",IFERROR(D52/B52,0))",
+    "A53": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",13),\"\")",
+    "B53": "=IF(A53=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",13),0))",
+    "C53": "=IF(A53=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",13),0))",
+    "D53": "=IF(A53=\"\",\"\",B53-C53)",
+    "E53": "=IF(A53=\"\",\"\",IFERROR(D53/B53,0))",
+    "A54": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",14),\"\")",
+    "B54": "=IF(A54=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",14),0))",
+    "C54": "=IF(A54=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",14),0))",
+    "D54": "=IF(A54=\"\",\"\",B54-C54)",
+    "E54": "=IF(A54=\"\",\"\",IFERROR(D54/B54,0))",
+    "A55": "=IFERROR(PIVOT.HEADER(2,\"#analytic_account_id\",15),\"\")",
+    "B55": "=IF(A55=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"estimate_amount\",\"#analytic_account_id\",15),0))",
+    "C55": "=IF(A55=\"\",\"\",IFERROR(PIVOT.VALUE(2,\"real_total\",\"#analytic_account_id\",15),0))",
+    "D55": "=IF(A55=\"\",\"\",B55-C55)",
+    "E55": "=IF(A55=\"\",\"\",IFERROR(D55/B55,0))"
+   },
+   "styles": {
+    "A1": 1,
+    "A2": 5,
+    "A8": 2,
+    "A28": 2,
+    "A29:G29": 3,
+    "A35:G35": 4,
+    "A38": 2,
+    "E38": 5,
+    "A39:E39": 3,
+    "A40:E40": 4
+   },
+   "formats": {
+    "B30:D35": 3,
+    "F30:G35": 3,
+    "E30:E35": 1,
+    "B40:D55": 3,
+    "E40:E55": 1
+   },
+   "borders": {},
+   "conditionalFormats": [
+    {
+     "id": "ccr-cf-dev-pos",
+     "ranges": [
+      "D30:E35"
+     ],
+     "rule": {
+      "type": "CellIsRule",
+      "operator": "isGreaterOrEqualTo",
+      "values": [
+       "0"
+      ],
+      "style": {
+       "fillColor": "#DCFCE7",
+       "textColor": "#15803D",
+       "bold": true
+      }
+     }
+    },
+    {
+     "id": "ccr-cf-dev-neg",
+     "ranges": [
+      "D30:E35"
+     ],
+     "rule": {
+      "type": "CellIsRule",
+      "operator": "isLessThan",
+      "values": [
+       "0"
+      ],
+      "style": {
+       "fillColor": "#FEE2E2",
+       "textColor": "#B91C1C",
+       "bold": true
+      }
+     }
+    },
+    {
+     "id": "ccr-cf-margin-low",
+     "ranges": [
+      "E40:E55"
+     ],
+     "rule": {
+      "type": "CellIsRule",
+      "operator": "isLessThan",
+      "values": [
+       "=Datos!$B$12"
+      ],
+      "style": {
+       "fillColor": "#FEE2E2",
+       "textColor": "#B91C1C",
+       "bold": true
+      }
+     }
+    },
+    {
+     "id": "ccr-cf-margin-ok",
+     "ranges": [
+      "E40:E55"
+     ],
+     "rule": {
+      "type": "CellIsRule",
+      "operator": "isGreaterOrEqualTo",
+      "values": [
+       "=Datos!$B$12"
+      ],
+      "style": {
+       "fillColor": "#DCFCE7",
+       "textColor": "#15803D",
+       "bold": true
+      }
+     }
+    }
+   ],
+   "dataValidationRules": [],
+   "figures": [
+    {
+     "id": "ccr-wk-planned",
+     "col": 0,
+     "row": 2,
+     "offset": {
+      "x": 0,
+      "y": 6
+     },
+     "width": 195,
+     "height": 105,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-wk-planned",
+      "keyValue": "Datos!C2",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "NeoData, Σ partidas"
+      },
+      "title": {
+       "text": "Costo planeado",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#EFF6FF",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-wk-real",
+     "col": 0,
+     "row": 2,
+     "offset": {
+      "x": 205,
+      "y": 6
+     },
+     "width": 195,
+     "height": 105,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-wk-real",
+      "keyValue": "Datos!C3",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "Odoo, al corte"
+      },
+      "title": {
+       "text": "Costo real",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#F9FAFB",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-wk-dev",
+     "col": 0,
+     "row": 2,
+     "offset": {
+      "x": 410,
+      "y": 6
+     },
+     "width": 195,
+     "height": 105,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-wk-dev",
+      "keyValue": "Datos!C4",
+      "baseline": "Datos!C5",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": ""
+      },
+      "title": {
+       "text": "Desviación",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#F0FDF4",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-wk-dev-delta",
+     "col": 0,
+     "row": 2,
+     "offset": {
+      "x": 615,
+      "y": 6
+     },
+     "width": 195,
+     "height": 105,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-wk-dev-delta",
+      "keyValue": "Datos!C6",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "cambio de la desviación"
+      },
+      "title": {
+       "text": "Vs sem. anterior",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#F0FDF4",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-wk-sale",
+     "col": 0,
+     "row": 2,
+     "offset": {
+      "x": 820,
+      "y": 6
+     },
+     "width": 195,
+     "height": 105,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-wk-sale",
+      "keyValue": "Datos!C7",
+      "baseline": "",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": "Σ avance NeoData"
+      },
+      "title": {
+       "text": "Venta semanal",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#FFF7ED",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-wk-margin",
+     "col": 0,
+     "row": 2,
+     "offset": {
+      "x": 1025,
+      "y": 6
+     },
+     "width": 195,
+     "height": 105,
+     "tag": "chart",
+     "data": {
+      "type": "scorecard",
+      "chartId": "ccr-wk-margin",
+      "keyValue": "Datos!C11",
+      "baseline": "Datos!C10",
+      "baselineMode": "text",
+      "baselineColorUp": "#00A04A",
+      "baselineColorDown": "#DC6965",
+      "baselineDescr": {
+       "text": ""
+      },
+      "title": {
+       "text": "Margen operativo",
+       "bold": true,
+       "color": "#434343"
+      },
+      "background": "#F0FDF4",
+      "humanize": false
+     }
+    },
+    {
+     "id": "ccr-wk-chart-cost",
+     "col": 0,
+     "row": 8,
+     "offset": {
+      "x": 0,
+      "y": 0
+     },
+     "width": 600,
+     "height": 360,
+     "tag": "chart",
+     "data": {
+      "type": "odoo_bar",
+      "chartId": "ccr-wk-chart-cost",
+      "title": {
+       "text": "Balance de costos por partida (semana vigente)",
+       "bold": true,
+       "fontSize": 16,
+       "color": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "legendPosition": "top",
+      "stacked": false,
+      "verticalAxisPosition": "left",
+      "dataSets": [],
+      "metaData": {
+       "groupBy": [
+        "partida",
+        "kind"
+       ],
+       "measure": "amount",
+       "order": null,
+       "resModel": "business.report.dashboard.cost",
+       "mode": "bar"
+      },
+      "searchParams": {
+       "comparison": null,
+       "context": {},
+       "domain": [
+        [
+         "is_current",
+         "=",
+         true
+        ]
+       ],
+       "groupBy": [
+        "partida",
+        "kind"
+       ],
+       "orderBy": []
+      },
+      "axesDesign": {
+       "x": {
+        "title": {
+         "text": ""
+        }
+       },
+       "y": {
+        "title": {
+         "text": ""
+        }
+       }
+      },
+      "fieldMatching": {
+       "ccr-week-flt-proyecto": {
+        "chain": "analytic_account_id",
+        "type": "many2one"
+       }
+      }
+     }
+    },
+    {
+     "id": "ccr-wk-chart-trend",
+     "col": 0,
+     "row": 8,
+     "offset": {
+      "x": 625,
+      "y": 0
+     },
+     "width": 600,
+     "height": 360,
+     "tag": "chart",
+     "data": {
+      "type": "odoo_line",
+      "chartId": "ccr-wk-chart-trend",
+      "title": {
+       "text": "Indicadores de costos y venta por semana",
+       "bold": true,
+       "fontSize": 16,
+       "color": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "legendPosition": "top",
+      "stacked": false,
+      "verticalAxisPosition": "left",
+      "dataSets": [],
+      "metaData": {
+       "groupBy": [
+        "week_date:day",
+        "serie"
+       ],
+       "measure": "amount",
+       "order": null,
+       "resModel": "business.report.dashboard.trend",
+       "mode": "line"
+      },
+      "searchParams": {
+       "comparison": null,
+       "context": {
+        "fill_temporal": false
+       },
+       "domain": [],
+       "groupBy": [
+        "week_date:day",
+        "serie"
+       ],
+       "orderBy": []
+      },
+      "axesDesign": {
+       "x": {
+        "title": {
+         "text": ""
+        }
+       },
+       "y": {
+        "title": {
+         "text": ""
+        }
+       }
+      },
+      "fieldMatching": {
+       "ccr-week-flt-proyecto": {
+        "chain": "analytic_account_id",
+        "type": "many2one"
+       }
+      }
+     }
+    }
+   ],
+   "tables": [],
+   "areGridLinesVisible": false,
+   "isVisible": true,
+   "headerGroups": {
+    "ROW": [],
+    "COL": []
+   },
+   "comments": {}
+  },
+  {
+   "id": "ccr-wk-sheet-data",
+   "name": "Datos",
+   "colNumber": 4,
+   "rowNumber": 20,
+   "rows": {},
+   "cols": {
+    "0": {
+     "size": 300
+    }
+   },
+   "merges": [],
+   "cells": {
+    "A1": "Indicador",
+    "B1": "Valor",
+    "C1": "Texto",
+    "A2": "Costo planeado",
+    "B2": "=IFERROR(PIVOT.VALUE(1,\"planned_amount\"),0)",
+    "A3": "Costo real",
+    "B3": "=IFERROR(PIVOT.VALUE(1,\"real_amount\"),0)",
+    "A4": "Desviación acumulada",
+    "B4": "=B2-B3",
+    "A5": "% optimización",
+    "B5": "=IFERROR(B4/B2,0)",
+    "A6": "Cambio de la desviación vs semana anterior",
+    "B6": "=IFERROR(PIVOT.VALUE(1,\"planned_delta\"),0)-IFERROR(PIVOT.VALUE(1,\"real_delta\"),0)",
+    "A7": "Venta semanal (avance NeoData)",
+    "B7": "=IFERROR(PIVOT.VALUE(2,\"neodata_advance\"),0)",
+    "A8": "Venta real (estimado autorizado)",
+    "B8": "=IFERROR(PIVOT.VALUE(2,\"estimate_amount\"),0)",
+    "A9": "Costo real de los proyectos",
+    "B9": "=IFERROR(PIVOT.VALUE(2,\"real_total\"),0)",
+    "A10": "Margen operativo global",
+    "B10": "=B8-B9",
+    "A11": "% margen operativo global",
+    "B11": "=IFERROR(B10/B8,0)",
+    "A12": "Alerta de margen bajo",
+    "B12": "=IFERROR(ODOO.LIST(1,1,\"margin_alert_pct\"),0.15)",
+    "A13": "Semana vigente",
+    "B13": "=IFERROR(ODOO.LIST(1,1,\"name\"),\"Sin semanas de reporte\")",
+    "C2": "=IF(ABS(B2)>=1000000,FORMAT.LARGE.NUMBER(B2,\"m\"),FORMAT.LARGE.NUMBER(B2,\"k\"))",
+    "C3": "=IF(ABS(B3)>=1000000,FORMAT.LARGE.NUMBER(B3,\"m\"),FORMAT.LARGE.NUMBER(B3,\"k\"))",
+    "C4": "=IF(ABS(B4)>=1000000,FORMAT.LARGE.NUMBER(B4,\"m\"),FORMAT.LARGE.NUMBER(B4,\"k\"))",
+    "C5": "=TEXT(B5,\"0.00%\")&\" de optimización\"",
+    "C6": "=IF(B6>=0,\"▲ $\",\"▼ $\")&IF(ABS(B6)>=1000000,TEXT(ABS(B6)/1000000,\"#,##0.0\")&\"m\",TEXT(ABS(B6)/1000,\"#,##0\")&\"k\")",
+    "C7": "=IF(ABS(B7)>=1000000,FORMAT.LARGE.NUMBER(B7,\"m\"),FORMAT.LARGE.NUMBER(B7,\"k\"))",
+    "C10": "=\"$\"&TEXT(B10/1000000,\"#,##0.0\")&\" M sobre venta real\"",
+    "C11": "=B11"
+   },
+   "styles": {
+    "A1:C1": 4
+   },
+   "formats": {
+    "B5": 1,
+    "B11:C11": 1,
+    "B12": 1,
+    "B2:B4": 3,
+    "B6:B10": 3
+   },
+   "borders": {},
+   "conditionalFormats": [],
+   "dataValidationRules": [],
+   "figures": [],
+   "tables": [],
+   "areGridLinesVisible": true,
+   "isVisible": false,
+   "headerGroups": {
+    "ROW": [],
+    "COL": []
+   },
+   "comments": {}
+  }
+ ],
+ "styles": {
+  "1": {
+   "bold": true,
+   "fontSize": 18,
+   "textColor": "#1F2937"
+  },
+  "2": {
+   "bold": true,
+   "fontSize": 13,
+   "textColor": "#714B67"
+  },
+  "3": {
+   "bold": true,
+   "fillColor": "#2F5BEA",
+   "textColor": "#FFFFFF"
+  },
+  "4": {
+   "bold": true,
+   "fillColor": "#F3F4F6"
+  },
+  "5": {
+   "italic": true,
+   "textColor": "#6B7280"
+  }
+ },
+ "formats": {
+  "1": "0.00%",
+  "2": "#,##0",
+  "3": "[$$]#,##0.00"
+ },
+ "borders": {},
+ "revisionId": "START_REVISION",
+ "uniqueFigureIds": true,
+ "settings": {
+  "locale": {
+   "name": "Spanish (MX)",
+   "code": "es_MX",
+   "thousandsSeparator": ",",
+   "decimalSeparator": ".",
+   "dateFormat": "dd/mm/yyyy",
+   "timeFormat": "hh:mm:ss",
+   "formulaArgSeparator": ",",
+   "weekStart": 1
+  }
+ },
+ "pivots": {
+  "1": {
+   "type": "ODOO",
+   "id": "1",
+   "formulaId": "1",
+   "name": "Partidas semana vigente",
+   "model": "business.report.week.partida",
+   "domain": [
+    [
+     "week_is_current",
+     "=",
+     true
+    ]
+   ],
+   "context": {},
+   "columns": [],
+   "rows": [
+    {
+     "fieldName": "partida"
+    }
+   ],
+   "measures": [
+    {
+     "id": "planned_amount",
+     "fieldName": "planned_amount"
+    },
+    {
+     "id": "real_amount",
+     "fieldName": "real_amount"
+    },
+    {
+     "id": "deviation",
+     "fieldName": "deviation"
+    },
+    {
+     "id": "planned_delta",
+     "fieldName": "planned_delta"
+    },
+    {
+     "id": "real_delta",
+     "fieldName": "real_delta"
+    }
+   ],
+   "sortedColumn": null,
+   "fieldMatching": {
+    "ccr-week-flt-proyecto": {
+     "chain": "analytic_account_id",
+     "type": "many2one"
+    }
+   }
+  },
+  "2": {
+   "type": "ODOO",
+   "id": "2",
+   "formulaId": "2",
+   "name": "Proyectos semana vigente",
+   "model": "business.report.week.project",
+   "domain": [
+    [
+     "week_is_current",
+     "=",
+     true
+    ]
+   ],
+   "context": {},
+   "columns": [],
+   "rows": [
+    {
+     "fieldName": "analytic_account_id"
+    }
+   ],
+   "measures": [
+    {
+     "id": "estimate_amount",
+     "fieldName": "estimate_amount"
+    },
+    {
+     "id": "real_total",
+     "fieldName": "real_total"
+    },
+    {
+     "id": "operating_margin",
+     "fieldName": "operating_margin"
+    },
+    {
+     "id": "neodata_advance",
+     "fieldName": "neodata_advance"
+    }
+   ],
+   "sortedColumn": null,
+   "fieldMatching": {
+    "ccr-week-flt-proyecto": {
+     "chain": "analytic_account_id",
+     "type": "many2one"
+    }
+   }
+  }
+ },
+ "pivotNextId": 3,
+ "customTableStyles": {},
+ "globalFilters": [
+  {
+   "id": "ccr-week-flt-proyecto",
+   "type": "relation",
+   "label": "Proyecto",
+   "modelName": "account.analytic.account",
+   "defaultValueDisplayNames": []
+  }
+ ],
+ "lists": {
+  "1": {
+   "id": "1",
+   "name": "Semana vigente",
+   "model": "business.report.week",
+   "columns": [
+    "name",
+    "date",
+    "state",
+    "margin_alert_pct"
+   ],
+   "domain": [
+    [
+     "is_current",
+     "=",
+     true
+    ]
+   ],
+   "context": {},
+   "orderBy": [
+    {
+     "name": "date",
+     "asc": false
+    }
+   ],
+   "fieldMatching": {}
+  }
+ },
+ "listNextId": 2,
+ "chartOdooMenusReferences": {
+  "ccr-wk-chart-cost": "custom_business_reports.menu_week_report_weeks",
+  "ccr-wk-chart-trend": "custom_business_reports.menu_week_report_projects"
+ }
+}

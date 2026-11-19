@@ -22,8 +22,13 @@ captura de NeoData y foto del costo real al cerrar la semana.
 Etapa 4, detalle por proyecto: valor contrato, estimado autorizado y
 facturado desde Odoo, balance financiero, margen operativo, costos por
 partida, semana actual vs anterior, histórico y accesos a los apuntes.
+
+Etapa 5, Tablero de Dirección: semana vigente, pestaña "Resumen" en cada
+semana (balance de costos por partida y margen operativo por proyecto),
+gráficas de costos y tendencia, y tablero "Reporte semanal Dirección" en
+Tableros.
 """,
-    'version': '19.0.4.0.0',
+    'version': '19.0.5.0.0',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',

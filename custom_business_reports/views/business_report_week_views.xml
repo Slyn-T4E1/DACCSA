@@ -42,6 +42,13 @@
                             confirm="Al cerrar se congela el costo real de esta semana. ¿Continuar?"/>
                     <button name="action_reopen" type="object" string="Reabrir"
                             invisible="state != 'closed'" groups="project.group_project_manager"/>
+                    <!-- Etapa 5: gráficas y tablero -->
+                    <button name="action_open_cost_chart" type="object" string="Gráfica de costos" icon="fa-bar-chart"
+                            invisible="state == 'draft'"/>
+                    <button name="action_open_trend_chart" type="object" string="Tendencia" icon="fa-line-chart"
+                            invisible="state == 'draft'"/>
+                    <button name="action_open_dashboard" type="object" string="Tablero" icon="fa-tachometer"
+                            invisible="not is_current"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -50,6 +57,7 @@
                         <group>
                             <field name="date" readonly="state != 'draft'"/>
                             <field name="previous_week_id"/>
+                            <field name="is_current" invisible="not is_current"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group>
@@ -89,6 +97,55 @@
                                     <field name="operating_margin" optional="hide"
                                            decoration-success="operating_margin &gt;= 0" decoration-danger="operating_margin &lt; 0"/>
                                     <button name="action_open_capture" type="object" string="Partidas" icon="fa-list"/>
+                                    <button name="action_open_detail" type="object" string="Detalle" icon="fa-line-chart"/>
+                                </list>
+                            </field>
+                        </page>
+                        <!-- Etapa 5: resumen de Dirección de la semana -->
+                        <page name="summary" string="Resumen" invisible="state == 'draft'">
+                            <group>
+                                <group string="Costos">
+                                    <field name="planned_total"/>
+                                    <field name="real_total"/>
+                                    <field name="deviation_total" string="Desviación acumulada"
+                                           decoration-success="deviation_total &gt;= 0" decoration-danger="deviation_total &lt; 0"/>
+                                    <field name="deviation_pct_total" widget="percentage"/>
+                                    <field name="deviation_delta_total"
+                                           decoration-success="deviation_delta_total &gt;= 0" decoration-danger="deviation_delta_total &lt; 0"/>
+                                </group>
+                                <group string="Venta y margen">
+                                    <field name="neodata_advance_total"/>
+                                    <field name="estimate_total" string="Venta real (estimado autorizado)"/>
+                                    <field name="operating_margin_total" string="Margen operativo global"/>
+                                    <field name="operating_margin_pct_total" widget="percentage"/>
+                                    <field name="margin_alert_pct" widget="percentage" readonly="state == 'closed'"/>
+                                </group>
+                            </group>
+                            <separator string="Balance de costos por partida"/>
+                            <field name="partida_summary_ids">
+                                <list>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="partida"/>
+                                    <field name="planned_amount" sum="Total" width="150px"/>
+                                    <field name="real_amount" sum="Total" width="150px"/>
+                                    <field name="deviation" sum="Total" width="150px"
+                                           decoration-success="deviation &gt;= 0" decoration-danger="deviation &lt; 0"/>
+                                    <field name="deviation_pct" widget="percentage" width="90px"/>
+                                    <field name="planned_delta" sum="Total" width="150px"/>
+                                    <field name="real_delta" sum="Total" width="150px"/>
+                                </list>
+                            </field>
+                            <separator string="Margen operativo al momento por proyecto"/>
+                            <field name="project_margin_ids">
+                                <list decoration-danger="margin_alert">
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="margin_alert" column_invisible="1"/>
+                                    <field name="analytic_account_id"/>
+                                    <field name="estimate_amount" string="Venta real" sum="Total" width="150px"/>
+                                    <field name="real_total" sum="Total" width="150px"/>
+                                    <field name="operating_margin" sum="Total" width="150px"/>
+                                    <field name="operating_margin_pct" widget="percentage" width="100px"/>
+                                    <field name="planned_margin_pct" widget="percentage" optional="hide" width="100px"/>
                                     <button name="action_open_detail" type="object" string="Detalle" icon="fa-line-chart"/>
                                 </list>
                             </field>
@@ -377,7 +434,7 @@
         <field name="arch" type="xml">
             <pivot string="Proyectos en análisis">
                 <field name="analytic_account_id" type="row"/>
-                <field name="week_date" interval="week" type="col"/>
+                <field name="week_date" interval="day" type="col"/>
                 <field name="operating_margin" type="measure"/>
             </pivot>
         </field>
@@ -401,7 +458,7 @@
         <field name="priority">20</field>
         <field name="arch" type="xml">
             <graph string="Tendencia semanal" type="line">
-                <field name="week_date" interval="week"/>
+                <field name="week_date" interval="day"/>
                 <field name="real_total" type="measure"/>
             </graph>
         </field>
@@ -417,6 +474,81 @@
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Aún no hay proyectos en análisis</p>
             <p>Los proyectos se agregan en las semanas de reporte. Aquí se ve el histórico de todas las semanas.</p>
+        </field>
+    </record>
+
+    <!-- ================= Etapa 5 · Gráficas del Tablero de Dirección ================= -->
+    <record id="business_report_dashboard_cost_view_graph" model="ir.ui.view">
+        <field name="name">business.report.dashboard.cost.graph</field>
+        <field name="model">business.report.dashboard.cost</field>
+        <field name="arch" type="xml">
+            <graph string="Balance de costos por partida" type="bar" stacked="0">
+                <field name="partida"/>
+                <field name="kind"/>
+                <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_cost_view_pivot" model="ir.ui.view">
+        <field name="name">business.report.dashboard.cost.pivot</field>
+        <field name="model">business.report.dashboard.cost</field>
+        <field name="arch" type="xml">
+            <pivot string="Balance de costos por partida">
+                <field name="partida" type="row"/>
+                <field name="kind" type="col"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_cost_view_search" model="ir.ui.view">
+        <field name="name">business.report.dashboard.cost.search</field>
+        <field name="model">business.report.dashboard.cost</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="analytic_account_id"/>
+                <field name="week_id"/>
+                <filter string="Semana vigente" name="current" domain="[('is_current', '=', True)]"/>
+                <group>
+                    <filter string="Proyecto" name="group_project" context="{'group_by': 'analytic_account_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_trend_view_graph" model="ir.ui.view">
+        <field name="name">business.report.dashboard.trend.graph</field>
+        <field name="model">business.report.dashboard.trend</field>
+        <field name="arch" type="xml">
+            <graph string="Indicadores de costos y venta" type="line" stacked="0">
+                <field name="week_date" interval="day"/>
+                <field name="serie"/>
+                <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_trend_view_pivot" model="ir.ui.view">
+        <field name="name">business.report.dashboard.trend.pivot</field>
+        <field name="model">business.report.dashboard.trend</field>
+        <field name="arch" type="xml">
+            <pivot string="Indicadores de costos y venta">
+                <field name="week_date" interval="day" type="row"/>
+                <field name="serie" type="col"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="business_report_dashboard_trend_view_search" model="ir.ui.view">
+        <field name="name">business.report.dashboard.trend.search</field>
+        <field name="model">business.report.dashboard.trend</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="analytic_account_id"/>
+                <filter string="Semanas cerradas" name="closed" domain="[('week_state', '=', 'closed')]"/>
+            </search>
         </field>
     </record>
 
