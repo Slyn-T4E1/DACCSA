@@ -74,6 +74,9 @@ class DashboardChart extends Component {
         const pie = ["pie", "doughnut"].includes(w.chart_type);
         const type = pie ? w.chart_type : w.chart_type === "line" ? "line" : "bar";
         const fmt = (v) => formatValue(v, w.format, { abbreviate: true, currency: this.props.currency });
+        // Colores de textos y líneas según el tema (claro u oscuro) de Odoo
+        const textColor = getComputedStyle(this.canvasRef.el).color || "#374151";
+        const gridColor = "rgba(128, 128, 128, 0.2)";
         const palette = w.datasets.map((d) => d.color);
         const datasets = w.datasets.map((d) => ({
             label: d.label,
@@ -92,13 +95,22 @@ class DashboardChart extends Component {
             options: {
                 maintainAspectRatio: false,
                 indexAxis: w.chart_type === "hbar" ? "y" : "x",
+                color: textColor,
                 plugins: {
-                    legend: { display: w.legend, position: "top" },
+                    legend: { display: w.legend, position: "top", labels: { color: textColor } },
                     tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmt(ctx.raw)}` } },
                 },
                 scales: pie ? {} : {
-                    x: { stacked: w.chart_type === "bar_stacked", ticks: w.chart_type === "hbar" ? { callback: fmt } : {} },
-                    y: { stacked: w.chart_type === "bar_stacked", ticks: w.chart_type === "hbar" ? {} : { callback: fmt } },
+                    x: {
+                        stacked: w.chart_type === "bar_stacked",
+                        grid: { color: gridColor },
+                        ticks: w.chart_type === "hbar" ? { callback: fmt, color: textColor } : { color: textColor },
+                    },
+                    y: {
+                        stacked: w.chart_type === "bar_stacked",
+                        grid: { color: gridColor },
+                        ticks: w.chart_type === "hbar" ? { color: textColor } : { callback: fmt, color: textColor },
+                    },
                 },
                 onClick: (event, elements) => {
                     if (!elements.length) {

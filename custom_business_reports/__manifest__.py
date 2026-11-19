@@ -31,7 +31,7 @@ Etapa 6, app "Tableros DACSA": tableros en JavaScript (comercial, listados y
 Reporte semanal Dirección) configurables desde la app: filtros, dominios,
 medidas y fórmulas.
 """,
-    'version': '19.0.6.0.0',
+    'version': '19.0.6.0.1',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',

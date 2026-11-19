@@ -92,8 +92,15 @@
     .o_bd_edit { opacity: 0; padding: 0 4px; transition: opacity 0.15s; }
     .o_bd_widget:hover .o_bd_edit { opacity: 1; }
 
-    // Indicadores
-    .o_bd_kpi .o_bd_title { font-size: 0.85rem; color: $o-gray-700; }
+    // Indicadores: el fondo es un color claro configurable, por eso el texto
+    // va siempre oscuro (se lee igual en modo claro y oscuro).
+    .o_bd_kpi {
+        color: #1F2937;
+        border-color: rgba(0, 0, 0, 0.08);
+        .o_bd_title { font-size: 0.85rem; color: #374151; }
+        .o_bd_kpi_note { color: #4B5563; }
+        .o_bd_edit { color: #374151; }
+    }
     .o_bd_kpi_value { font-size: 1.9rem; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .o_bd_kpi_note { font-size: 0.8rem; color: $o-gray-600; }
     .o_bd_clickable { cursor: pointer; &:hover { text-decoration: underline; } }
