@@ -1,16 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Menús del módulo. Etapa 1: configuración en CRM. -->
-<odoo>
-    <menuitem id="menu_crm_lead_segment_rule"
-              name="Segmentos por calidad del lead"
-              parent="crm.crm_menu_config"
-              action="crm_lead_segment_rule_action"
-              groups="sales_team.group_sale_manager"
-              sequence="50"/>
+<!--
+    Menús del módulo (19.0.11.0.0): todo vive en la app "Tableros DACSA".
 
-    <!-- Etapa 2: CRM › Reportes › Seguimiento comercial -->
-    <menuitem id="menu_business_reports_root" name="Seguimiento comercial"
-              parent="crm.crm_menu_report" sequence="5"/>
+    Tableros DACSA
+    ├── Tableros                       (tableros configurables)
+    ├── Comercial                      (reportes y listados del CRM)
+    ├── Reporte semanal Dirección      (tablero, semanas e histórico)
+    └── Configuración                  (tableros, metas, segmentos, partidas)
+
+    Cada menú conserva su grupo: Comercial para vendedores, Reporte semanal
+    para usuarios de Proyecto, y cada opción de Configuración para quien la
+    administra. Los ids no cambian: la actualización mueve los menús que antes
+    estaban en CRM y en Proyecto.
+-->
+<odoo>
+    <!-- ================= Comercial ================= -->
+    <menuitem id="menu_business_reports_root" name="Comercial"
+              parent="menu_business_dashboard_root" sequence="20"
+              groups="sales_team.group_sale_salesman"/>
     <menuitem id="menu_business_report_invitations" parent="menu_business_reports_root"
               action="action_business_report_invitations" sequence="10"/>
     <menuitem id="menu_business_report_close_status" parent="menu_business_reports_root"
@@ -34,19 +41,22 @@
     <menuitem id="menu_business_list_idle" parent="menu_business_reports_root"
               action="action_business_list_idle" sequence="110"/>
 
-    <!-- Etapa 3: Proyecto › Reportes › Reporte semanal Dirección -->
+    <!-- ================= Reporte semanal Dirección ================= -->
     <menuitem id="menu_week_report_root" name="Reporte semanal Dirección"
-              parent="project.menu_project_report" sequence="5"/>
-    <menuitem id="menu_week_report_weeks" parent="menu_week_report_root"
-              action="business_report_week_action" sequence="10"/>
-    <!-- Etapa 6: el Tablero de Dirección (app Tableros DACSA) también desde Proyecto -->
+              parent="menu_business_dashboard_root" sequence="30"
+              groups="project.group_project_user"/>
     <menuitem id="menu_week_report_dashboard" parent="menu_week_report_root"
               action="action_week_report_dashboard" sequence="5"/>
-    <!-- Etapa 4: histórico de proyectos en análisis -->
+    <menuitem id="menu_week_report_weeks" parent="menu_week_report_root"
+              action="business_report_week_action" sequence="10"/>
     <menuitem id="menu_week_report_projects" parent="menu_week_report_root"
               action="business_report_week_project_action" sequence="20"/>
-    <!-- Configuración: tipo de partida de las posiciones presupuestarias -->
+
+    <!-- ================= Configuración ================= -->
+    <menuitem id="menu_crm_lead_segment_rule" name="Segmentos por calidad del lead"
+              parent="menu_business_dashboard_config_root" action="crm_lead_segment_rule_action"
+              groups="sales_team.group_sale_manager" sequence="30"/>
     <menuitem id="menu_budget_post_partida" name="Partidas de posiciones presupuestarias"
-              parent="project.menu_project_config" action="action_budget_post_partida"
-              groups="project.group_project_manager" sequence="60"/>
+              parent="menu_business_dashboard_config_root" action="action_budget_post_partida"
+              groups="project.group_project_manager" sequence="40"/>
 </odoo>

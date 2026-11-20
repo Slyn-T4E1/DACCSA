@@ -112,6 +112,11 @@
 
     // Tablas y listados
     .o_bd_count { font-weight: 400; opacity: 0.7; margin-left: 4px; }
+    // Comparativo (19.0.11.0.0)
+    .o_bd_kpi_compare { font-size: 0.8rem; margin-top: 2px; color: #4B5563; }
+    .o_bd_cmp { font-size: 0.72rem; opacity: 0.7; white-space: nowrap; }
+    .o_bd_compare_label { font-size: 0.75rem; opacity: 0.75; margin-top: 2px; }
+    .o_bd_compare_record { min-width: 200px; }
     .o_bd_kpi_secondary { font-size: 0.8em; }
     .o_bd_table_tools { margin-bottom: 6px; max-width: 280px; }
     .o_bd_table_wrap { overflow: auto; }

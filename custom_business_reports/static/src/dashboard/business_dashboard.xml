@@ -40,7 +40,10 @@
                             t-on-click="(ev) => this.open(row, ev)" title="Ver los registros">
                             <td t-att-class="w.transposed ? 'o_bd_sticky' : ''"><t t-esc="row.label"/></td>
                             <t t-foreach="row.cells" t-as="cell" t-key="cell_index">
-                                <td t-attf-class="text-end {{ cellClass(cell) }}" t-on-click="(ev) => this.open(cell, ev)"><t t-esc="format(cell, w.columns[cell_index])"/></td>
+                                <td t-attf-class="text-end {{ cellClass(cell) }}" t-on-click="(ev) => this.open(cell, ev)">
+                                    <t t-esc="format(cell, w.columns[cell_index])"/>
+                                    <div t-if="row.compare" class="o_bd_cmp" t-esc="compareText(row, cell_index, cell, w.columns[cell_index])"/>
+                                </td>
                             </t>
                         </tr>
                     </t>
@@ -55,7 +58,10 @@
         <tr class="o_bd_total" t-on-click="(ev) => this.open(w.total, ev)">
             <td><t t-esc="w.total.label"/></td>
             <t t-foreach="w.total.cells" t-as="cell" t-key="cell_index">
-                <td t-attf-class="text-end {{ cellClass(cell) }}" t-on-click="(ev) => this.open(cell, ev)"><t t-esc="format(cell, w.columns[cell_index])"/></td>
+                <td t-attf-class="text-end {{ cellClass(cell) }}" t-on-click="(ev) => this.open(cell, ev)">
+                    <t t-esc="format(cell, w.columns[cell_index])"/>
+                    <div t-if="w.total.compare" class="o_bd_cmp" t-esc="compareText(w.total, cell_index, cell, w.columns[cell_index])"/>
+                </td>
             </t>
         </tr>
     </t>
@@ -68,6 +74,15 @@
                     <button class="btn btn-secondary" t-on-click="reload" title="Volver a calcular">
                         <i class="fa fa-refresh"/> Actualizar
                     </button>
+                    <button class="btn btn-secondary ms-1" t-on-click="exportPdf" t-att-disabled="!state.data or state.exporting"
+                            title="Descargar el tablero en PDF, con los filtros y el comparativo de la pantalla">
+                        <i class="fa fa-file-pdf-o"/> PDF
+                    </button>
+                    <button class="btn btn-secondary ms-1" t-on-click="exportXlsx" t-att-disabled="!state.data or state.exporting"
+                            title="Descargar los datos del tablero en Excel">
+                        <i class="fa fa-file-excel-o"/> Excel
+                    </button>
+                    <i t-if="state.exporting" class="fa fa-circle-o-notch fa-spin ms-2 align-self-center"/>
                     <t t-if="state.data and state.data.can_edit">
                         <button class="btn btn-secondary ms-1" t-on-click="addWidget"><i class="fa fa-plus"/> Elemento</button>
                         <button class="btn btn-secondary ms-1" t-on-click="configureDashboard"><i class="fa fa-cog"/> Configurar</button>
@@ -148,6 +163,30 @@
                                 </t>
                             </div>
                         </t>
+                        <!-- Comparativo (19.0.11.0.0) -->
+                        <div t-if="compareChoices.length > 1" class="o_bd_filter o_bd_filter_compare">
+                            <label class="o_bd_filter_label">Comparar con</label>
+                            <div class="d-flex gap-1 align-items-center">
+                                <select class="form-select form-select-sm" t-on-change="(ev) => this.setCompareMode(ev.target.value)">
+                                    <t t-foreach="compareChoices" t-as="choice" t-key="choice.key">
+                                        <option t-att-value="choice.key" t-att-selected="choice.key === compareKey" t-esc="choice.label"/>
+                                    </t>
+                                </select>
+                                <t t-if="state.compare.mode === 'custom'">
+                                    <input type="date" class="form-control form-control-sm" t-att-value="state.compare.from || ''"
+                                           t-on-change="(ev) => this.setCompareDate('from', ev)"/>
+                                    <span>–</span>
+                                    <input type="date" class="form-control form-control-sm" t-att-value="state.compare.to || ''"
+                                           t-on-change="(ev) => this.setCompareDate('to', ev)"/>
+                                </t>
+                                <div t-if="state.compare.mode === 'record' and compareRecordOption" class="o_bd_compare_record">
+                                    <RecordSelector resModel="compareRecordOption.model" resId="state.compare.record_id || false"
+                                                    domain="compareRecordOption.domain" placeholder="'Elige con cuál'"
+                                                    update="(id) => this.setCompareRecord(id)"/>
+                                </div>
+                            </div>
+                            <div t-if="compareLabel" class="o_bd_compare_label">Comparando con: <t t-esc="compareLabel"/></div>
+                        </div>
                         <button class="btn btn-link btn-sm align-self-end" t-on-click="clearFilters">Valores por omisión</button>
                         <i t-if="state.loading" class="fa fa-circle-o-notch fa-spin align-self-end mb-2"/>
                     </div>
@@ -177,10 +216,17 @@
                                         <span t-if="widget.secondary" class="o_bd_kpi_secondary"> · <t t-esc="widget.secondary"/></span>
                                     </div>
                                     <div class="o_bd_kpi_note" t-if="widget.subtitle" t-esc="widget.subtitle"/>
+                                    <div t-if="widget.compare" class="o_bd_kpi_compare">
+                                        <t t-esc="compareKpiText(widget)"/>
+                                        <span t-if="compareDeltaText(widget)"
+                                              t-attf-class="ms-1 {{ widget.compare.delta >= 0 ? 'o_bd_good_text' : 'o_bd_bad_text' }}">
+                                            (<t t-esc="compareDeltaText(widget)"/>)
+                                        </span>
+                                    </div>
                                 </t>
                                 <t t-elif="widget.type === 'chart'">
                                     <div t-if="!widget.labels.length" class="text-muted small">Sin datos</div>
-                                    <DashboardChart t-else="" widget="widget" currency="currency"
+                                    <DashboardChart t-else="" widget="widget" currency="currency" compareLabel="compareLabel"
                                                     onClick="(params) => this.drilldown(widget, params)"/>
                                     <div class="o_bd_kpi_note" t-if="widget.subtitle" t-esc="widget.subtitle"/>
                                 </t>

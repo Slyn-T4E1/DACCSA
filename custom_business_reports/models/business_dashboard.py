@@ -204,11 +204,14 @@ class BusinessDashboard(models.Model):
         return [{'id': d.id, 'name': d.name, 'category': d.category or '', 'xmlid': xmlids.get(d.id) or ''}
                 for d in self.search([])]
 
-    def get_dashboard_data(self, filter_values=None):
+    def get_dashboard_data(self, filter_values=None, compare=None):
         """Todo lo que la interfaz necesita para pintar el tablero.
 
         filter_values: {id del filtro (texto): valor}. Si un filtro no viene,
         se usa su valor por omisión.
+        compare (19.0.11.0.0): comparativo opcional, p. ej.
+        {'mode': 'previous_year'} o {'mode': 'record', 'filter_id': 3, 'record_id': 7}.
+        Cada elemento trae además los valores del comparativo.
         """
         self.ensure_one()
         # El usuario debe poder ver el tablero (reglas por grupo). La
@@ -219,6 +222,29 @@ class BusinessDashboard(models.Model):
         can_edit = self.env.user.has_group('custom_business_reports.group_dashboard_manager')
         self = self.sudo()  # noqa: PLW0642
         values = self._resolve_filter_values(filter_values or {})
+        widgets = self._compute_widgets(values)
+        compare_info = False
+        if compare and compare.get('mode'):
+            compare_values, label, shift = self._compare_values(values, compare)
+            if compare_values is not None:
+                changed = self.filter_ids.filtered(lambda f: compare_values.get(f.id) != values.get(f.id))
+                self._merge_compare(widgets, self._compute_widgets(compare_values), shift, changed)
+                compare_info = dict(compare, label=label)
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description or '',
+            'filters': [f._payload(values.get(f.id)) for f in self.filter_ids],
+            'widgets': widgets,
+            'can_edit': can_edit,
+            'currency': {'symbol': self.env.company.currency_id.symbol,
+                         'position': self.env.company.currency_id.position},
+            'compare': compare_info,
+            'compare_options': self._compare_options(),
+        }
+
+    def _compute_widgets(self, values):
+        """Datos de cada elemento visible con los valores de filtro dados."""
         kpi_values = {}
         widgets = []
         # 1) Indicadores: primero los de datos, luego las fórmulas en el orden
@@ -271,16 +297,143 @@ class BusinessDashboard(models.Model):
                 _logger.warning('Tablero %s, elemento %s: %s', self.name, widget.name, error)
                 data['error'] = str(error)
             widgets.append(data)
+        return widgets
+
+    # ------------------------------------------------------------------
+    # Comparativo (19.0.11.0.0)
+    # ------------------------------------------------------------------
+    def _compare_options(self):
+        """Comparativos que ofrece el tablero: fechas si tiene filtro de periodo y
+        "otro registro" por cada filtro de relación de un solo valor (p. ej. la semana)."""
         return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description or '',
-            'filters': [f._payload(values.get(f.id)) for f in self.filter_ids],
-            'widgets': widgets,
-            'can_edit': can_edit,
-            'currency': {'symbol': self.env.company.currency_id.symbol,
-                         'position': self.env.company.currency_id.position},
+            'date': bool(self.filter_ids.filtered(lambda f: f.filter_type == 'date')),
+            'records': [{'filter_id': f.id, 'name': f.name, 'model': f.comodel_name,
+                         'domain': safe_eval(f.record_domain or '[]')}
+                        for f in self.filter_ids if f.filter_type == 'many2one' and not f.multiple and f.comodel_name],
         }
+
+    @staticmethod
+    def _period_shift(value, mode):
+        """Desplazamiento del periodo comparado (relativedelta) o None si no se puede."""
+        date_from, date_to = value.get('from'), value.get('to')
+        if not date_from or not date_to:
+            return None
+        if mode == 'previous_year':
+            return relativedelta(years=1)
+        months = {'this_month': 1, 'last_month': 1, 'this_quarter': 3, 'this_year': 12, 'last_year': 12,
+                  'last_12_months': 12}.get(value.get('preset'))
+        if months:
+            return relativedelta(months=months)
+        return relativedelta(days=(date_to - date_from).days + 1)
+
+    def _compare_values(self, values, compare):
+        """(valores de filtro del comparativo, etiqueta, desplazamiento para alinear grupos)."""
+        mode = compare.get('mode')
+        new_values = dict(values)
+        if mode == 'record':
+            flt = self.filter_ids.filtered(lambda f: f.id == int(compare.get('filter_id') or 0))
+            record_id = int(compare.get('record_id') or 0)
+            if not flt or not record_id:
+                return None, '', None
+            new_values[flt.id] = [record_id]
+            record = self.env[flt.comodel_name].sudo(False).browse(record_id).exists()
+            return new_values, record.display_name or '', None
+        dates = self.filter_ids.filtered(lambda f: f.filter_type == 'date')
+        if not dates:
+            return None, '', None
+        shift, label = None, ''
+        for flt in dates:
+            value = values.get(flt.id) or {}
+            if mode == 'custom':
+                date_from = fields.Date.to_date(compare.get('from')) if compare.get('from') else None
+                date_to = fields.Date.to_date(compare.get('to')) if compare.get('to') else None
+                if not date_from or not date_to:
+                    return None, '', None
+                if value.get('from') and date_from.day == 1 and value['from'].day == 1:
+                    months = (value['from'].year - date_from.year) * 12 + value['from'].month - date_from.month
+                    shift = relativedelta(months=months)
+                elif value.get('from'):
+                    shift = relativedelta(days=(value['from'] - date_from).days)
+            else:
+                shift = self._period_shift(value, mode)
+                if shift is None:
+                    return None, '', None
+                date_from, date_to = value['from'] - shift, value['to'] - shift
+                if mode == 'previous_period' and shift.months:     # fin de mes correcto (p. ej. febrero)
+                    date_to = value['from'] - relativedelta(days=1)
+            new_values[flt.id] = {'preset': 'custom', 'from': date_from, 'to': date_to}
+            label = '%s – %s' % (format_date(self.env, date_from), format_date(self.env, date_to))
+        return new_values, label, shift
+
+    @staticmethod
+    def _shift_key(key, shift):
+        """Llave de un grupo del comparativo llevada al periodo actual (solo fechas)."""
+        if shift is None or not isinstance(key, str) or len(key) != 10 or key[4:5] != '-':
+            return key
+        try:
+            return fields.Date.to_string(fields.Date.to_date(key) + shift)
+        except ValueError:
+            return key
+
+    def _merge_compare(self, widgets, others, shift, changed):
+        """Agrega a cada elemento los valores del comparativo, alineados por grupo.
+        Un elemento al que no le aplica el filtro comparado (p. ej. "a hoy", sin
+        periodo) no lleva comparativo: saldría igual."""
+        by_id = {w['id']: w for w in others}
+        records = {w.id: w for w in self.widget_ids}
+        for widget in widgets:
+            other = by_id.get(widget['id'])
+            if not other or widget['error'] or other['error']:
+                continue
+            if not records[widget['id']]._uses_filters(changed):
+                continue
+            if widget['type'] == 'kpi':
+                current, previous = widget['value'] or 0.0, other['value'] or 0.0
+                widget['compare'] = {
+                    'value': previous,
+                    'delta': (current - previous) / abs(previous) if previous else False,
+                    'secondary': other.get('secondary') or False,
+                }
+            elif widget['type'] == 'chart' and widget['chart_type'] not in ('pie', 'doughnut'):
+                widget['compare_datasets'] = self._compare_datasets(widget, other, shift)
+            elif widget['type'] == 'table':
+                self._compare_table(widget, other, shift)
+
+    def _aligned(self, keys, other_keys, other_values, shift):
+        """Valores del comparativo en el orden de las llaves actuales. Las fechas
+        se alinean llevándolas al periodo actual; si no coinciden, por posición."""
+        mapped = {self._shift_key(key, shift): value for key, value in zip(other_keys, other_values)}
+        if keys and any(key in mapped for key in keys):
+            return [mapped.get(key, 0.0) for key in keys]
+        return [other_values[i] if i < len(other_values) else 0.0 for i in range(len(keys))]
+
+    def _compare_datasets(self, widget, other, shift):
+        datasets = []
+        for dataset in widget['datasets']:
+            match = next((d for d in other['datasets'] if d.get('measure_id') == dataset.get('measure_id')
+                          and d.get('group2') == dataset.get('group2')), None)
+            if not match:
+                continue
+            datasets.append(dict(dataset, data=self._aligned(widget['keys'], other['keys'], match['data'], shift)))
+        return datasets
+
+    def _compare_table(self, widget, other, shift):
+        if widget.get('transposed'):
+            # Columnas = grupos; renglones = medidas
+            keys = [column['id'] for column in widget['columns']]
+            other_keys = [column['id'] for column in other['columns']]
+            other_rows = {row['key']: row for row in other['rows']}
+            for row in widget['rows']:
+                match = other_rows.get(row['key'])
+                if match:
+                    row['compare'] = self._aligned(keys, other_keys, [c['value'] for c in match['cells']], shift)
+            return
+        other_rows = {self._shift_key(row['key'], shift): row for row in other['rows']}
+        for row in widget['rows']:
+            match = other_rows.get(row['key'])
+            row['compare'] = [c['value'] for c in match['cells']] if match else None
+        if widget.get('total') and other.get('total'):
+            widget['total']['compare'] = [c['value'] for c in other['total']['cells']]
 
     def _resolve_filter_values(self, filter_values):
         """Valor efectivo de cada filtro: el que viene de la pantalla o el de omisión."""
@@ -624,6 +777,33 @@ class BusinessDashboardWidget(models.Model):
     # ------------------------------------------------------------------
     # Dominio con filtros
     # ------------------------------------------------------------------
+    def _uses_filters(self, filters):
+        """¿Alguno de estos filtros cambia los datos del elemento? Los indicadores con
+        fórmula se toman como que sí (dependen de otros indicadores)."""
+        self.ensure_one()
+        if not filters:
+            return False
+        if not self.model_id:
+            return True
+        for flt in filters:
+            for measure in self.measure_ids.filtered(lambda m: not m.formula) or [None]:
+                if measure and measure.source_model_id:
+                    model = self.env[measure.source_model_id.model]
+                    mapping = self.filter_map_ids.filtered(lambda m, flt=flt: m.filter_id == flt)
+                    if mapping and not mapping[0].field_path:
+                        continue
+                    path = (measure.period_field or measure.source_groupby_field) if flt.filter_type == 'date' \
+                        else flt.field_name
+                    if path and _resolve_field(model, path):
+                        return True
+                    continue
+                if measure and measure.ignore_period and flt.filter_type == 'date':
+                    continue
+                path = self._filter_field(flt, measure.period_field if measure else None)
+                if path and _resolve_field(self.env[self.model_name], path):
+                    return True
+        return False
+
     def _eval_domain(self, text):
         """Dominio escrito como texto. Acepta fechas relativas con context_today() y relativedelta."""
         today = fields.Date.context_today(self)

@@ -46,8 +46,12 @@ y prospección, cada uno con indicadores, gráfica y listado.
 ejecutivo con desglose Sin Recompra / Recompra, histórico de invitaciones con
 sus indicadores, embudo Totales / SR / R, venta por trimestre vs meta
 acumulada, ingenierías y origen de leads Sin Recompra.
+
+19.0.11.0.0: comparativo en los tableros (periodo anterior, mismo periodo del
+año anterior, fechas o la semana que se elija), exportar a PDF y a Excel, y
+todos los menús del módulo dentro de la app "Tableros DACSA".
 """,
-    'version': '19.0.10.0.1',
+    'version': '19.0.11.0.0',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',
@@ -71,6 +75,7 @@ acumulada, ingenierías y origen de leads Sin Recompra.
         'views/menus.xml',
         'report/week_direction_report.xml',
         'report/week_direction_mail.xml',
+        'report/dashboard_export_report.xml',
     ],
     'assets': {
         'web.assets_backend': [

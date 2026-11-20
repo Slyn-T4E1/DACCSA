@@ -71,6 +71,10 @@ function valueLabelsPlugin(formatter, color) {
                 if (meta.type === "line" && chart.config.type === "bar") {
                     return;
                 }
+                // El comparativo no lleva números (se leen en la leyenda y al pasar el ratón)
+                if (dataset._compare) {
+                    return;
+                }
                 const stacked = meta.type === "bar" && !!(chart.options.scales?.y?.stacked);
                 meta.data.forEach((element, index) => {
                     const value = dataset.data[index];
@@ -112,7 +116,7 @@ function valueLabelsPlugin(formatter, color) {
 // ---------------------------------------------------------------------------
 class DashboardChart extends Component {
     static template = "custom_business_reports.DashboardChart";
-    static props = { widget: Object, currency: Object, onClick: Function };
+    static props = { widget: Object, currency: Object, onClick: Function, compareLabel: { type: String, optional: true } };
 
     setup() {
         this.canvasRef = useRef("canvas");
@@ -130,109 +134,157 @@ class DashboardChart extends Component {
             return;
         }
         this.chart?.destroy();
-        const w = this.props.widget;
-        const pie = ["pie", "doughnut"].includes(w.chart_type);
-        const type = pie ? w.chart_type : w.chart_type === "line" ? "line" : "bar";
-        const currency = this.props.currency;
-        const fmt = (v) => formatValue(v, w.format, { abbreviate: true, currency });
-        const fmtRight = (v) => formatValue(v, w.right_format, { abbreviate: true, currency });
-        // Gráfica combinada: alguna medida en el eje derecho (p. ej. monto junto a un conteo)
-        const hasRight = !pie && w.datasets.some((d) => d.right_axis);
-        // Conteos: marcas del eje sin decimales (evita 0.5, 1.5 o números repetidos)
-        const onlyIntegers = (list) => list.every((d) => d.data.every((v) => Number.isInteger(Number(v || 0))));
-        const leftPrecision = onlyIntegers(w.datasets.filter((d) => !(hasRight && d.right_axis))) ? 0 : undefined;
-        const rightPrecision = onlyIntegers(w.datasets.filter((d) => d.right_axis)) ? 0 : undefined;
         // Colores de textos y líneas según el tema (claro u oscuro) de Odoo
         const textColor = getComputedStyle(this.canvasRef.el).color || "#374151";
-        const gridColor = "rgba(128, 128, 128, 0.2)";
-        const palette = w.datasets.map((d) => d.color);
-        const datasets = w.datasets.map((d) => {
-            // Cada medida puede dibujarse como barra o como línea (p. ej. la meta mensual)
-            const seriesType = pie ? type : d.series_type || type;
-            return {
-                type: seriesType,
-                label: d.label,
-                data: d.data,
-                backgroundColor: pie ? palette.concat(["#93C5FD", "#FCA5A5", "#FCD34D", "#6EE7B7"]) : d.color,
-                borderColor: pie ? "#fff" : d.color,
-                borderWidth: seriesType === "line" ? 2 : 1,
-                pointRadius: seriesType === "line" ? 3 : undefined,
-                fill: false,
-                tension: type === "line" ? 0.25 : 0,
-                // Las líneas se dibujan encima de las barras
-                order: seriesType === "line" && type !== "line" ? 0 : 1,
-                yAxisID: hasRight && d.right_axis ? "y1" : "y",
-                stack: w.chart_type === "bar_stacked" && seriesType === "line" ? `line-${d.measure_id}` : undefined,
-                _measure: d.measure_id,
-                _group2: d.group2,
-                _format: d.format,
-            };
-        });
-        const plugins = [];
-        if (w.show_values && !pie) {
-            plugins.push(valueLabelsPlugin(
-                (value, dataset) => formatValue(value, dataset._format || w.format, { abbreviate: true, currency }),
-                textColor,
-            ));
+        this.chart = new window.Chart(this.canvasRef.el, buildChartConfig(this.props.widget, {
+            currency: this.props.currency,
+            compareLabel: this.props.compareLabel,
+            textColor,
+            onClick: (params) => this.props.onClick(params),
+        }));
+    }
+}
+
+/** Color con transparencia para la serie del comparativo (#RRGGBB → #RRGGBBAA). */
+function fade(color, alpha = "66") {
+    return /^#[0-9a-fA-F]{6}$/.test(color || "") ? `${color}${alpha}` : color;
+}
+
+/**
+ * Configuración de Chart.js de un elemento. La usan la pantalla y la
+ * exportación a PDF (que dibuja la misma gráfica en colores claros).
+ * Con comparativo, cada serie lleva su gemela del otro periodo: más clara y,
+ * en líneas, punteada; en barras apiladas va en su propia pila.
+ */
+export function buildChartConfig(w, { currency, compareLabel = "", textColor = "#374151",
+    gridColor = "rgba(128, 128, 128, 0.2)", onClick = null, animation = true } = {}) {
+    const pie = ["pie", "doughnut"].includes(w.chart_type);
+    const type = pie ? w.chart_type : w.chart_type === "line" ? "line" : "bar";
+    const stacked = w.chart_type === "bar_stacked";
+    const fmt = (v) => formatValue(v, w.format, { abbreviate: true, currency });
+    const fmtRight = (v) => formatValue(v, w.right_format, { abbreviate: true, currency });
+    const compare = pie ? [] : (w.compare_datasets || []);
+    const all = w.datasets.concat(compare);
+    // Gráfica combinada: alguna medida en el eje derecho (p. ej. monto junto a un conteo)
+    const hasRight = !pie && all.some((d) => d.right_axis);
+    // Conteos: marcas del eje sin decimales (evita 0.5, 1.5 o números repetidos)
+    const onlyIntegers = (list) => list.every((d) => d.data.every((v) => Number.isInteger(Number(v || 0))));
+    const leftPrecision = onlyIntegers(all.filter((d) => !(hasRight && d.right_axis))) ? 0 : undefined;
+    const rightPrecision = onlyIntegers(all.filter((d) => d.right_axis)) ? 0 : undefined;
+    const palette = w.datasets.map((d) => d.color);
+    const toDataset = (d, isCompare) => {
+        // Cada medida puede dibujarse como barra o como línea (p. ej. la meta mensual)
+        const seriesType = pie ? type : d.series_type || type;
+        const color = isCompare ? fade(d.color) : d.color;
+        let stack;
+        if (stacked) {
+            stack = seriesType === "line" ? `line-${d.measure_id}${isCompare ? "-c" : ""}` : (isCompare ? "comp" : "actual");
         }
-        this.chart = new window.Chart(this.canvasRef.el, {
-            type,
-            data: { labels: w.labels, datasets },
-            plugins,
-            options: {
-                // Espacio arriba para los números sobre las barras
-                layout: w.show_values ? { padding: { top: 16, right: w.chart_type === "hbar" ? 30 : 0 } } : {},
-                maintainAspectRatio: false,
-                indexAxis: w.chart_type === "hbar" ? "y" : "x",
-                color: textColor,
-                plugins: {
-                    legend: {
-                        display: w.legend,
-                        position: "top",
-                        // En el orden de las medidas (Chart.js los ordena por la capa de dibujo)
-                        labels: { color: textColor, sort: (a, b) => a.datasetIndex - b.datasetIndex },
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => `${ctx.dataset.label}: ${formatValue(ctx.raw, ctx.dataset._format || w.format, { abbreviate: true, currency })}`,
-                        },
-                    },
+        return {
+            type: seriesType,
+            label: isCompare ? `${d.label} · ${compareLabel}` : d.label,
+            data: d.data,
+            backgroundColor: pie ? palette.concat(["#93C5FD", "#FCA5A5", "#FCD34D", "#6EE7B7"]) : color,
+            borderColor: pie ? "#fff" : (isCompare ? d.color : color),
+            borderWidth: seriesType === "line" ? 2 : 1,
+            borderDash: isCompare && seriesType === "line" ? [5, 4] : undefined,
+            pointRadius: seriesType === "line" ? 3 : undefined,
+            fill: false,
+            tension: type === "line" ? 0.25 : 0,
+            // Las líneas se dibujan encima de las barras
+            order: seriesType === "line" && type !== "line" ? 0 : 1,
+            yAxisID: hasRight && d.right_axis ? "y1" : "y",
+            stack,
+            _measure: d.measure_id,
+            _group2: d.group2,
+            _format: d.format,
+            _compare: isCompare,
+        };
+    };
+    const datasets = w.datasets.map((d) => toDataset(d, false)).concat(compare.map((d) => toDataset(d, true)));
+    const plugins = [];
+    if (w.show_values && !pie) {
+        plugins.push(valueLabelsPlugin(
+            (value, dataset) => formatValue(value, dataset._format || w.format, { abbreviate: true, currency }),
+            textColor,
+        ));
+    }
+    return {
+        type,
+        data: { labels: w.labels, datasets },
+        plugins,
+        options: {
+            animation: animation ? undefined : false,
+            maintainAspectRatio: false,
+            // Espacio arriba para los números sobre las barras
+            layout: w.show_values ? { padding: { top: 16, right: w.chart_type === "hbar" ? 30 : 0 } } : {},
+            indexAxis: w.chart_type === "hbar" ? "y" : "x",
+            color: textColor,
+            plugins: {
+                legend: {
+                    display: w.legend || compare.length > 0,
+                    position: "top",
+                    // En el orden de las medidas (Chart.js los ordena por la capa de dibujo)
+                    labels: { color: textColor, sort: (a, b) => a.datasetIndex - b.datasetIndex },
                 },
-                scales: pie ? {} : {
-                    x: {
-                        stacked: w.chart_type === "bar_stacked",
-                        grid: { color: gridColor },
-                        ticks: w.chart_type === "hbar" ? { callback: fmt, color: textColor, precision: leftPrecision } : { color: textColor },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: ${formatValue(ctx.raw, ctx.dataset._format || w.format, { abbreviate: true, currency })}`,
                     },
-                    y: {
-                        stacked: w.chart_type === "bar_stacked",
-                        grid: { color: gridColor },
-                        ticks: w.chart_type === "hbar" ? { color: textColor } : { callback: fmt, color: textColor, precision: leftPrecision },
-                    },
-                    ...(hasRight ? {
-                        y1: {
-                            position: "right",
-                            beginAtZero: true,
-                            grid: { drawOnChartArea: false },
-                            ticks: { callback: fmtRight, color: textColor, precision: rightPrecision },
-                        },
-                    } : {}),
-                },
-                onClick: (event, elements) => {
-                    if (!elements.length) {
-                        return;
-                    }
-                    const { datasetIndex, index } = elements[0];
-                    const dataset = datasets[datasetIndex];
-                    this.props.onClick({
-                        group_key: w.keys[index],
-                        measure_id: dataset._measure,
-                        group2_key: dataset._group2,
-                    });
                 },
             },
-        });
-    }
+            scales: pie ? {} : {
+                x: {
+                    stacked,
+                    grid: { color: gridColor },
+                    ticks: w.chart_type === "hbar" ? { callback: fmt, color: textColor, precision: leftPrecision } : { color: textColor },
+                },
+                y: {
+                    stacked,
+                    grid: { color: gridColor },
+                    ticks: w.chart_type === "hbar" ? { color: textColor } : { callback: fmt, color: textColor, precision: leftPrecision },
+                },
+                ...(hasRight ? {
+                    y1: {
+                        position: "right",
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: fmtRight, color: textColor, precision: rightPrecision },
+                    },
+                } : {}),
+            },
+            onClick: (event, elements) => {
+                if (!onClick || !elements.length) {
+                    return;
+                }
+                const { datasetIndex, index } = elements[0];
+                const dataset = datasets[datasetIndex];
+                if (dataset._compare) {
+                    return;     // el detalle abre los registros del periodo actual
+                }
+                onClick({
+                    group_key: w.keys[index],
+                    measure_id: dataset._measure,
+                    group2_key: dataset._group2,
+                });
+            },
+        },
+    };
+}
+
+/** Imagen PNG (data URL) de una gráfica en colores claros, para el PDF. */
+export function chartImage(w, { currency, compareLabel, width = 1100, height = 380 }) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const config = buildChartConfig(w, { currency, compareLabel, textColor: "#374151",
+        gridColor: "rgba(0, 0, 0, 0.12)", animation: false });
+    config.options.responsive = false;
+    config.options.devicePixelRatio = 1.5;
+    const chart = new window.Chart(canvas, config);
+    const url = chart.toBase64Image("image/png");
+    chart.destroy();
+    return url;
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +341,15 @@ class DashboardTable extends Component {
         return formatValue(cell.value, cell.format || column.format, { currency: this.props.currency });
     }
 
+    /** Valor del comparativo de una celda ("vs $1.2 M"), o vacío si no hay. */
+    compareText(row, index, cell, column) {
+        const value = row.compare?.[index];
+        if (value === undefined || value === null) {
+            return "";
+        }
+        return `vs ${formatValue(value, cell.format || column.format, { abbreviate: true, currency: this.props.currency })}`;
+    }
+
     cellClass(cell) {
         const total = cell.total ? " o_bd_total_cell" : "";
         return (cell.state === "good" ? "o_bd_good" : cell.state === "bad" ? "o_bd_bad" : "") + total;
@@ -314,9 +375,13 @@ export class BusinessDashboardAction extends Component {
             filterValues: {},
             loading: false,
             sidebar: true,
+            // Comparativo (19.0.11.0.0): {mode, from, to, filter_id, record_id}
+            compare: {},
+            exporting: false,
         });
         useSetupAction({
-            getLocalState: () => ({ dashboardId: this.state.activeId, filterValues: this.state.filterValues }),
+            getLocalState: () => ({ dashboardId: this.state.activeId, filterValues: this.state.filterValues,
+                compare: this.state.compare }),
         });
         onWillStart(async () => {
             await this.loadList();
@@ -329,6 +394,7 @@ export class BusinessDashboardAction extends Component {
             const first = this.state.dashboards[0];
             const id = this.state.dashboards.find((d) => d.id === Number(wanted)) ? Number(wanted) : first?.id;
             this.state.filterValues = saved.filterValues || params.filter_values || {};
+            this.state.compare = saved.compare || {};
             if (id) {
                 await this.openDashboard(id, { keepFilters: true });
             }
@@ -357,6 +423,7 @@ export class BusinessDashboardAction extends Component {
         if (!keepFilters || id !== this.state.activeId) {
             if (!keepFilters) {
                 this.state.filterValues = {};
+                this.state.compare = {};
             }
         }
         this.state.activeId = id;
@@ -370,7 +437,7 @@ export class BusinessDashboardAction extends Component {
         this.state.loading = true;
         try {
             const data = await this.orm.call("business.dashboard", "get_dashboard_data",
-                [[this.state.activeId]], { filter_values: this.state.filterValues });
+                [[this.state.activeId]], { filter_values: this.state.filterValues, compare: this.compareArg });
             this.state.data = data;
             // Guarda los valores efectivos (incluye los de omisión)
             const values = {};
@@ -413,7 +480,126 @@ export class BusinessDashboardAction extends Component {
 
     clearFilters() {
         this.state.filterValues = {};
+        this.state.compare = {};
         this.reload();
+    }
+
+    // ---------------- Comparativo ----------------
+    /** Lo que se manda al servidor: nada si no hay comparativo completo. */
+    get compareArg() {
+        const c = this.state.compare || {};
+        if (!c.mode) {
+            return null;
+        }
+        if (c.mode === "custom" && !(c.from && c.to)) {
+            return null;
+        }
+        if (c.mode === "record" && !c.record_id) {
+            return null;
+        }
+        return c;
+    }
+
+    get compareChoices() {
+        const options = this.state.data?.compare_options || {};
+        const choices = [{ key: "", label: _t("Sin comparativo") }];
+        if (options.date) {
+            choices.push({ key: "previous_period", label: _t("Periodo anterior") });
+            choices.push({ key: "previous_year", label: _t("Mismo periodo del año anterior") });
+            choices.push({ key: "custom", label: _t("Otras fechas…") });
+        }
+        for (const rec of options.records || []) {
+            choices.push({ key: `record:${rec.filter_id}`, label: _t("Otra %s…", rec.name.toLowerCase()), record: rec });
+        }
+        return choices;
+    }
+
+    get compareKey() {
+        const c = this.state.compare || {};
+        return c.mode === "record" ? `record:${c.filter_id}` : c.mode || "";
+    }
+
+    get compareRecordOption() {
+        const c = this.state.compare || {};
+        return (this.state.data?.compare_options?.records || []).find((r) => r.filter_id === c.filter_id);
+    }
+
+    get compareLabel() {
+        return this.state.data?.compare?.label || "";
+    }
+
+    setCompareMode(key) {
+        if (key.startsWith("record:")) {
+            this.state.compare = { mode: "record", filter_id: Number(key.split(":")[1]), record_id: false };
+            return;     // espera a que se elija el registro
+        }
+        this.state.compare = key ? { ...this.state.compare, mode: key, filter_id: false, record_id: false } : {};
+        if (key !== "custom" || (this.state.compare.from && this.state.compare.to)) {
+            this.reload();
+        }
+    }
+
+    setCompareDate(key, ev) {
+        this.state.compare = { ...this.state.compare, [key]: ev.target.value || false };
+        if (this.compareArg) {
+            this.reload();
+        }
+    }
+
+    setCompareRecord(id) {
+        this.state.compare = { ...this.state.compare, record_id: id || false };
+        this.reload();
+    }
+
+    compareKpiText(widget) {
+        const c = widget.compare;
+        if (!c) {
+            return "";
+        }
+        const value = formatValue(c.value, widget.format, { abbreviate: widget.abbreviate, currency: this.currency });
+        return `vs ${value}${c.secondary ? " · " + c.secondary : ""}`;
+    }
+
+    compareDeltaText(widget) {
+        const delta = widget.compare?.delta;
+        if (delta === false || delta === undefined || delta === null) {
+            return "";
+        }
+        return `${delta >= 0 ? "+" : ""}${(delta * 100).toLocaleString("es-MX", { maximumFractionDigits: 1 })} %`;
+    }
+
+    // ---------------- Exportar (19.0.11.0.0) ----------------
+    async exportXlsx() {
+        await this._export("export_xlsx", {});
+    }
+
+    async exportPdf() {
+        // Cada gráfica se dibuja aparte en colores claros y viaja como imagen
+        await loadBundle("web.chartjs_lib");
+        const images = {};
+        for (const widget of this.state.data.widgets) {
+            if (widget.type === "chart" && !widget.error && widget.labels.length) {
+                const width = Math.round(1100 * widget.width / 12) + 120;
+                images[widget.id] = chartImage(widget, { currency: this.currency, compareLabel: this.compareLabel,
+                    width, height: widget.height || 320 });
+            }
+        }
+        await this._export("export_pdf", { images });
+    }
+
+    async _export(method, extra) {
+        if (!this.state.activeId || this.state.exporting) {
+            return;
+        }
+        this.state.exporting = true;
+        try {
+            const action = await this.orm.call("business.dashboard", method, [[this.state.activeId]], {
+                filter_values: this.state.filterValues, compare: this.compareArg, ...extra,
+            });
+            await this.action.doAction(action);
+        } finally {
+            this.state.exporting = false;
+        }
     }
 
     // ---------------- Detalle ----------------

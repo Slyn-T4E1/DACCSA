@@ -19,6 +19,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | 7+ | 19.0.8.0.0 | Tabla "Invitaciones a cotizar, mes a mes" (meses en columnas), metas de venta mensuales configurables (Meta, Avance, Venta vs meta) y antigüedad del pipeline por rangos | Mauricio y Dirección |
 | 7+ | 19.0.9.0.0 | "Listados comerciales" como el Reporte Comercial: ganados SR/R (semanas creación→cierre), perdidos, cancelados, en pausa, pipeline abierto y prospección, cada uno con indicadores, gráfica y listado | Mauricio |
 | 7+ | 19.0.10.0.0 | "Seguimiento comercial" como el Reporte Comercial: resumen ejecutivo con SR/R, histórico de invitaciones con indicadores, embudo Totales / SR / R, venta por trimestre vs meta acumulada, ingenierías y origen de leads | Mauricio y Dirección |
+| 7+ | 19.0.11.0.0 | Comparativo en los tableros, exportar a PDF y Excel, y todos los menús dentro de la app Tableros DACSA | Dirección, Mauricio |
 
 ## Etapa 1 · Qué hace
 
@@ -333,3 +334,23 @@ Nuevo en las medidas: **Acumulada** (suma corrida por grupo) y **Sin periodo** (
 
 - Origen de leads Sin Recompra igual que la lámina 10: Sin Recompra incluye Inadecuado, sin "Ganados en 0's" y sin leads sin origen o con origen "Recompra".
 - La barra "Acumulado" de la venta por trimestre pasa a gris para que se vea en modo oscuro.
+
+## 19.0.11.0.0 · Qué hace
+
+1. **Comparativo** en cualquier tablero: en la barra de filtros, **Comparar con**:
+   - *Periodo anterior* (el mismo tamaño justo antes: mes, trimestre, año o días), *Mismo periodo del año anterior* u *Otras fechas…* (si el tablero tiene filtro de periodo).
+   - *Otra semana…* (o el registro que corresponda) en tableros con un filtro de un solo valor, como el Reporte semanal Dirección.
+   - Indicadores: "vs valor (+x %)". Gráficas: la serie del otro periodo, más clara (en barras apiladas, su propia pila; en líneas, punteada). Tablas: el valor del comparativo bajo cada número. Los meses se alinean (enero contra enero).
+   - Los elementos a los que no les aplica el filtro comparado (p. ej. "a hoy") no llevan comparativo. Los listados no se comparan.
+2. **Exportar**: botones **PDF** y **Excel** en el tablero, con los mismos filtros y comparativo de la pantalla.
+   - PDF horizontal: filtros, indicadores, gráficas (imágenes en colores claros), tablas y listados.
+   - Excel: hoja "Tablero" con filtros e indicadores (y comparativo) y una hoja por gráfica, tabla o listado; las gráficas de barras y líneas traen su gráfica nativa de Excel.
+   - El archivo se descarga y se borra del servidor después de una hora.
+3. **Menús**: todo en la app **Tableros DACSA**: Tableros · Comercial (reportes y listados del CRM) · Reporte semanal Dirección (tablero, semanas, histórico) · Configuración (tableros, metas de venta, segmentos por calidad del lead, partidas de posiciones presupuestarias). Ya no aparecen en CRM ni en Proyecto. Cada opción conserva su grupo de acceso.
+
+## 19.0.11.0.0 · Cómo probar
+
+1. Seguimiento comercial › Comparar con › Mismo periodo del año anterior: revisar indicadores, gráficas por mes y tablas.
+2. Tablero de Dirección › Comparar con › Otra semana… › elegir una semana cerrada.
+3. PDF y Excel con y sin comparativo.
+4. Revisar que CRM › Reportes y Proyecto › Reportes ya no tengan los menús del módulo y que estén en Tableros DACSA.

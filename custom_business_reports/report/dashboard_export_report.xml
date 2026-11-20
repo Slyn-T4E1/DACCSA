@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    19.0.11.0.0 · PDF de un tablero ("Exportar PDF" en Tableros DACSA).
+    Lo arma business.dashboard.export_pdf con lo que se ve en pantalla: filtros,
+    comparativo, indicadores, gráficas (imágenes que manda la interfaz) y tablas.
+    Diseño con tablas (wkhtmltopdf no maneja flex ni grid).
+-->
+<odoo>
+    <record id="paperformat_dashboard_export" model="report.paperformat">
+        <field name="name">Tablero DACSA (horizontal)</field>
+        <field name="format">A4</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">8</field>
+        <field name="margin_bottom">8</field>
+        <field name="margin_left">8</field>
+        <field name="margin_right">8</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">96</field>
+    </record>
+
+    <record id="action_report_dashboard_export" model="ir.actions.report">
+        <field name="name">Tablero (PDF)</field>
+        <field name="model">business.dashboard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_business_reports.report_dashboard_export</field>
+        <field name="report_file">custom_business_reports.report_dashboard_export</field>
+        <field name="paperformat_id" ref="paperformat_dashboard_export"/>
+    </record>
+
+    <template id="report_dashboard_export">
+        <t t-call="web.html_container">
+            <div class="article ccr-dash" t-att-data-oe-model="'business.dashboard'" t-att-data-oe-id="docs.id">
+                <style>
+                    .ccr-dash { font-family: Helvetica, Arial, sans-serif; color: #1F2937; font-size: 11px; }
+                    .ccr-dash h1 { font-size: 20px; margin: 0 0 4px 0; }
+                    .ccr-dash .meta { color: #6B7280; font-size: 10px; margin-bottom: 10px; }
+                    .ccr-dash table.grid { width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; page-break-inside: avoid; }
+                    .ccr-dash td.cell { vertical-align: top; border: 1px solid #E5E7EB; border-radius: 6px; padding: 8px; }
+                    .ccr-dash td.kpi { background: #F9FAFB; }
+                    .ccr-dash .title { font-weight: bold; font-size: 11px; margin-bottom: 4px; }
+                    .ccr-dash .value { font-size: 20px; font-weight: bold; }
+                    .ccr-dash .good { color: #15803D; }
+                    .ccr-dash .bad { color: #B91C1C; }
+                    .ccr-dash .note { color: #6B7280; font-size: 9.5px; }
+                    .ccr-dash .section { font-size: 15px; font-weight: bold; color: #2F5BEA; padding: 6px 6px 0 6px; page-break-after: avoid; }
+                    .ccr-dash table.data { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+                    .ccr-dash table.data th { background: #2F5BEA; color: #FFFFFF; padding: 3px 4px; text-align: left; }
+                    .ccr-dash table.data td { border-bottom: 1px solid #E5E7EB; padding: 2px 4px; }
+                    .ccr-dash table.data .num { text-align: right; }
+                    .ccr-dash table.data tr.total td { font-weight: bold; background: #F3F4F6; }
+                    .ccr-dash table.data tr.group td { font-weight: bold; background: #E5E7EB; }
+                    .ccr-dash .cmp { color: #6B7280; font-size: 8.5px; }
+                    .ccr-dash img.chart { width: 100%; }
+                </style>
+                <h1 t-esc="data['name']"/>
+                <div class="meta">
+                    <span t-esc="company.name"/> · Generado: <span t-esc="generated"/>
+                    <br/><span t-esc="filters_text"/>
+                    <t t-if="compare"><br/>Comparativo: <span t-esc="compare.get('label')"/></t>
+                </div>
+                <t t-foreach="rows" t-as="row">
+                    <t t-if="row[0]['type'] == 'section'">
+                        <div class="section" t-esc="row[0]['title']"/>
+                        <div class="note" style="padding: 0 6px;" t-if="row[0].get('subtitle')" t-esc="row[0]['subtitle']"/>
+                    </t>
+                    <table t-else="" class="grid">
+                        <tr>
+                            <t t-foreach="row" t-as="w">
+                                <td t-att-class="'cell kpi' if w['type'] == 'kpi' else 'cell'"
+                                    t-att-style="'width: ' + str(round(int(w.get('width') or 12) * 100.0 / 12, 1)) + '%;'">
+                                    <div class="title">
+                                        <span t-esc="w['title']"/>
+                                        <span class="note" t-if="w['type'] == 'list' and not w['error']"> (<t t-esc="w['count']"/>)</span>
+                                    </div>
+                                    <div t-if="w['error']" class="bad" t-esc="w['error']"/>
+                                    <!-- Indicador -->
+                                    <t t-elif="w['type'] == 'kpi'">
+                                        <div t-att-class="'value good' if w.get('state') == 'good' else 'value bad' if w.get('state') == 'bad' else 'value'">
+                                            <t t-esc="fmt(w['value'], w['format'])"/>
+                                            <span t-if="w.get('secondary')" style="font-size: 14px;"> · <t t-esc="w['secondary']"/></span>
+                                        </div>
+                                        <div class="note" t-if="w.get('subtitle')" t-esc="w['subtitle']"/>
+                                        <div class="cmp" t-if="w.get('compare')">
+                                            vs <t t-esc="fmt(w['compare']['value'], w['format'])"/>
+                                            <span t-if="w['compare'].get('delta') is not False"
+                                                  t-att-class="'good' if w['compare']['delta'] &gt;= 0 else 'bad'">
+                                                (<t t-esc="delta_text(w['compare']['delta'])"/>)
+                                            </span>
+                                        </div>
+                                    </t>
+                                    <!-- Gráfica: imagen que dibujó la interfaz -->
+                                    <t t-elif="w['type'] == 'chart'">
+                                        <img t-if="images.get(str(w['id']))" class="chart" t-att-src="images.get(str(w['id']))"/>
+                                        <div t-else="" class="note">Sin imagen de la gráfica.</div>
+                                        <div class="note" t-if="w.get('subtitle')" t-esc="w['subtitle']"/>
+                                    </t>
+                                    <!-- Tabla -->
+                                    <t t-elif="w['type'] == 'table'">
+                                        <div class="note" t-if="w.get('subtitle')" t-esc="w['subtitle']"/>
+                                        <table class="data">
+                                            <tr>
+                                                <th t-esc="w.get('row_label') or ''"/>
+                                                <th t-foreach="w['columns']" t-as="c" class="num" t-esc="c['name']"/>
+                                            </tr>
+                                            <t t-set="table_rows" t-value="([dict(w['total'], is_total=True)] if w.get('total') and w.get('total_first') else []) + w['rows'] + ([dict(w['total'], is_total=True)] if w.get('total') and not w.get('total_first') else [])"/>
+                                            <tr t-foreach="table_rows" t-as="r" t-att-class="'total' if r.get('is_total') else ''">
+                                                <td t-esc="r['label']"/>
+                                                <td t-foreach="r['cells']" t-as="cell" class="num">
+                                                    <t t-esc="fmt(cell['value'], cell.get('format') or w['columns'][cell_index].get('format'))"/>
+                                                    <div class="cmp" t-if="r.get('compare') and cell_index &lt; len(r['compare']) and r['compare'][cell_index] is not None">
+                                                        vs <t t-esc="fmt(r['compare'][cell_index], cell.get('format') or w['columns'][cell_index].get('format'))"/>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </t>
+                                    <!-- Listado -->
+                                    <t t-elif="w['type'] == 'list'">
+                                        <table class="data">
+                                            <tr>
+                                                <th t-if="w.get('show_number')">#</th>
+                                                <th t-foreach="w['columns']" t-as="c"
+                                                    t-att-class="'num' if c['type'] in ('monetary', 'float', 'integer') else ''" t-esc="c['label']"/>
+                                            </tr>
+                                            <tr t-foreach="w['records']" t-as="r" t-att-class="'group' if r.get('group') else ''">
+                                                <t t-if="r.get('group')">
+                                                    <td t-att-colspan="len(w['columns']) + (1 if w.get('show_number') else 0)">
+                                                        <t t-esc="r['group']"/> (<t t-esc="r['count']"/>)
+                                                    </td>
+                                                </t>
+                                                <t t-else="">
+                                                    <td t-if="w.get('show_number')" class="num" t-esc="r['number']"/>
+                                                    <td t-foreach="r['cells']" t-as="value"
+                                                        t-att-class="'num' if w['columns'][value_index]['type'] in ('monetary', 'float', 'integer') else ''"
+                                                        t-att-style="'color: #DC2626; font-weight: bold;' if value_index in r.get('red', []) else ''">
+                                                        <t t-esc="fmt(value, 'monetary' if w['columns'][value_index]['type'] == 'monetary' else 'number1' if w['columns'][value_index].get('digits') == 1 else 'number') if w['columns'][value_index]['type'] in ('monetary', 'float', 'integer') else value"/>
+                                                    </td>
+                                                </t>
+                                            </tr>
+                                            <tr t-if="w.get('total') and w['records']" class="total">
+                                                <td t-if="w.get('show_number')"/>
+                                                <td t-foreach="w['total']" t-as="value"
+                                                    t-att-class="'num' if value != '' else ''">
+                                                    <t t-if="value != ''" t-esc="fmt(value, 'monetary' if w['columns'][value_index]['type'] == 'monetary' else 'number')"/>
+                                                    <t t-elif="value_index == 0">Total</t>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        <div class="note" t-if="w['count'] &gt; w['shown']">
+                                            Se muestran <t t-esc="w['shown']"/> de <t t-esc="w['count']"/>
+                                        </div>
+                                    </t>
+                                </td>
+                            </t>
+                        </tr>
+                    </table>
+                </t>
+            </div>
+        </t>
+    </template>
+</odoo>
