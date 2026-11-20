@@ -177,4 +177,4 @@ class TestDashboardGoalsRanges(TransactionCase):
         order = [w['title'] for w in data['widgets']]
         self.assertLess(order.index('Avance vs meta'), order.index('Invitaciones a cotizar por mes'))
         self.assertGreater(order.index('Antigüedad del pipeline enviado'),
-                           order.index('Embudo por segmento (periodo seleccionado)'))
+                           order.index('Razones de pérdida'))

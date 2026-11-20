@@ -18,6 +18,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | 7 | 19.0.7.0.0 | PDF Reporte Semanal de Dirección (resumen + sección por proyecto), guardado en la semana y envío por correo | Dirección |
 | 7+ | 19.0.8.0.0 | Tabla "Invitaciones a cotizar, mes a mes" (meses en columnas), metas de venta mensuales configurables (Meta, Avance, Venta vs meta) y antigüedad del pipeline por rangos | Mauricio y Dirección |
 | 7+ | 19.0.9.0.0 | "Listados comerciales" como el Reporte Comercial: ganados SR/R (semanas creación→cierre), perdidos, cancelados, en pausa, pipeline abierto y prospección, cada uno con indicadores, gráfica y listado | Mauricio |
+| 7+ | 19.0.10.0.0 | "Seguimiento comercial" como el Reporte Comercial: resumen ejecutivo con SR/R, histórico de invitaciones con indicadores, embudo Totales / SR / R, venta por trimestre vs meta acumulada, ingenierías y origen de leads | Mauricio y Dirección |
 
 ## Etapa 1 · Qué hace
 
@@ -306,3 +307,24 @@ Al actualizar se quitan los 5 listados anteriores de "Listados comerciales" (gan
 1. Tableros DACSA › Listados comerciales con "Este año": comparar cada sección contra las láminas 4 a 9 del PDF (p. ej. perdidos SR 16 · $737.9 M, R 14 · $141.8 M; en pausa con monto SR 8 · $222.9 M, R 6 · $132.4 M).
 2. Clic en una barra o en un renglón abre las oportunidades.
 3. Pipeline abierto y En pausa no cambian con el periodo (son a hoy).
+
+## 19.0.10.0.0 · Qué hace
+
+Tablero **Seguimiento comercial** como las láminas 0 a 4 y 10 del Reporte Comercial:
+
+1. **Resumen ejecutivo** (3 renglones de indicadores): venta ganada (SR · R), avance vs meta, meta, pipeline enviado (cotizaciones y cuántas con más de 180 días), ganados y perdidos (SR · R), efectividad (SR · R), **semana** (venta, ganados, perdidos y leads nuevos de los últimos 7 días), invitaciones, atendidas (% de las invitaciones), % de bateo (SR · R · base histórica) y **semanas creación→cierre**.
+2. **Invitaciones a cotizar**: gráficas por mes e histórico por trimestre, y 4 indicadores del histórico (cotizados, declinados, % de bateo histórico SR/R y trimestre en curso vs anterior). Sigue la tabla mes a mes.
+3. **Ganados, perdidos y venta**: gráfica de ganados y perdidos por mes junto al **embudo Totales / Sin Recompra / Recompra** (invitaciones, atendidos, declinados, ganados, perdidos y pendientes con su %, % de bateo, efectividad y % de bateo histórico); indicadores **Venta Sin Recompra** y **Recompra** (proyectos, % y ticket), **Ticket promedio** e **Ingenierías** (nombre contiene "ingenier"); **venta por trimestre vs meta acumulada** (venta, acumulado y meta acumulada) junto a la venta por mes.
+4. **Origen de leads Sin Recompra** (si existe el campo de Studio "¿Cómo se generó el lead?"): barras de leads, cotizados y ganados por canal y tabla con % cotizado y % ganado.
+
+El "Embudo por segmento" anterior se reemplaza por el embudo Totales / SR / R. Al actualizar solo se cambian las notas de fábrica que el usuario no modificó.
+
+Nuevo en la oportunidad: **Segmento (SR/R)** (Recompra o Sin Recompra, que incluye Inadecuado y sin segmento).
+
+Nuevo en las medidas: **Acumulada** (suma corrida por grupo) y **Sin periodo** (no aplica el filtro de periodo, p. ej. para un histórico).
+
+## 19.0.10.0.0 · Cómo probar
+
+1. Seguimiento comercial con "Este año": comparar el resumen contra la hoja "Resumen ejecutivo" del PDF y el embudo contra la tabla de la lámina 3.
+2. Capturar las metas del año y revisar "Venta por trimestre vs meta acumulada".
+3. Revisar la sección "Origen de leads Sin Recompra" contra la lámina 10.

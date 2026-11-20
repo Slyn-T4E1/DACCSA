@@ -123,6 +123,17 @@ class CrmLead(models.Model):
         compute='_compute_report_age_days',
     )
 
+    # 19.0.10.0.0 · Segmento en dos grupos, como el Reporte Comercial: Recompra
+    # o Sin Recompra (incluye Inadecuado y sin segmento). Sirve para tablas y
+    # gráficas con columnas Sin Recompra / Recompra.
+    report_segment_group = fields.Selection(
+        [('sin_recompra', 'Sin Recompra'), ('recompra', 'Recompra')],
+        string='Segmento (SR/R)',
+        compute='_compute_report_segment_group',
+        store=True,
+        index=True,
+    )
+
     # 19.0.9.0.0 · Semanas de la creación al cierre (ganados y perdidos), como
     # la columna "Sem" del reporte comercial: (fecha de cierre − creación) / 7.
     report_close_weeks = fields.Float(
@@ -186,6 +197,11 @@ class CrmLead(models.Model):
                 continue
             prefix = 'ganado' if lead.won_status == 'won' else 'perdido'
             lead.report_close_status = '%s_%s' % (prefix, segment_key.get(lead.report_segment, 'otro'))
+
+    @api.depends('report_segment')
+    def _compute_report_segment_group(self):
+        for lead in self:
+            lead.report_segment_group = 'recompra' if lead.report_segment == 'recompra' else 'sin_recompra'
 
     @api.depends('create_date', 'date_closed')
     def _compute_report_close_weeks(self):

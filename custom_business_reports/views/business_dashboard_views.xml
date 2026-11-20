@@ -314,6 +314,8 @@
                             <field name="color" placeholder="#2F5BEA"/>
                             <field name="series_type"/>
                             <field name="right_axis"/>
+                            <field name="cumulative" invisible="formula"/>
+                            <field name="ignore_period" invisible="formula"/>
                             <field name="hidden"/>
                         </group>
                     </group>

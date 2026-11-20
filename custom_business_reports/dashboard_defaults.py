@@ -42,149 +42,6 @@ def m(name, code, aggregate='count', field=None, **kw):
     return dict(name=name, code=code, aggregate=aggregate, field=field, **kw)
 
 
-COMMERCIAL = {
-    'xmlid': 'dashboard_commercial',
-    'name': 'Seguimiento comercial',
-    'category': 'Comercial',
-    'sequence': 10,
-    'groups': ['sales_team.group_sale_salesman'],
-    'description': 'Dirección de Nuevos Proyectos: invitaciones, cotizaciones cerradas, venta y embudo por '
-                   'segmento. Excluye "Ganados en 0\'s".',
-    'filters': [
-        dict(key='periodo', name='Periodo', filter_type='date', field_name='create_date', default_period='this_year'),
-        dict(key='vendedor', name='Vendedor', filter_type='many2one', field_name='user_id', comodel='res.users',
-             multiple=True, record_domain="[('share', '=', False)]"),
-        dict(key='segmento', name='Segmento', filter_type='selection', field_name='report_segment',
-             selection_model='crm.lead'),
-    ],
-    'widgets': [
-        # ---------------- Indicadores ----------------
-        dict(type='kpi', name='Venta ganada', code='venta', width='3', model='crm.lead',
-             domain=d(OPP, "('won_status', '=', 'won')", NOT_EXCLUDED), map={'periodo': 'date_closed'},
-             measures=[m('Venta', 'venta', 'sum', 'expected_revenue')], value_format='monetary',
-             subtitle='por fecha de cierre', color='#EFF6FF'),
-        dict(type='kpi', name='Ganados', code='ganados', width='3', model='crm.lead', domain=d(OPP, ARCHIVED, WON),
-             map={'periodo': 'date_closed'}, measures=[m('Ganados', 'ganados')], value_format='integer',
-             abbreviate=False, subtitle='cotizaciones ganadas', color='#EFF6FF'),
-        dict(type='kpi', name='Perdidos', code='perdidos', width='3', model='crm.lead', domain=d(OPP, ARCHIVED, LOST),
-             map={'periodo': 'date_closed'}, measures=[m('Perdidos', 'perdidos')], value_format='integer',
-             abbreviate=False, subtitle='cotizaciones perdidas', color='#FEF2F2'),
-        dict(type='kpi', name='Efectividad de cierre', code='efectividad', width='3',
-             formula='div(ganados, ganados + perdidos)', value_format='percent',
-             subtitle='ganados / (ganados + perdidos)', color='#F0FDF4'),
-        dict(type='kpi', name='Invitaciones a cotizar', code='invitaciones', width='3', model='crm.lead',
-             domain=d(OPP, ARCHIVED, INVITATIONS), measures=[m('Invitaciones', 'invitaciones')],
-             value_format='integer', abbreviate=False, subtitle='cotizadas + declinadas', color='#F9FAFB'),
-        dict(type='kpi', name='Atendidas (cotizadas)', code='atendidas', width='3', model='crm.lead',
-             domain=d(OPP, ARCHIVED, ATTENDED), measures=[m('Atendidas', 'atendidas')],
-             value_format='integer', abbreviate=False, subtitle='por fecha de creación', color='#F9FAFB'),
-        dict(type='kpi', name='% de bateo', code='bateo', width='3', formula='div(ganados, atendidas)',
-             value_format='percent', subtitle='ganados / atendidas', color='#F0FDF4'),
-        dict(type='kpi', name='Pipeline enviado', code='pipeline', width='3', model='crm.lead',
-             domain=d(OPP, "('report_open_status', '=', 'enviada')", "('won_status', '=', 'pending')"),
-             map={'periodo': None}, measures=[m('Pipeline', 'pipeline', 'sum', 'expected_revenue')],
-             value_format='monetary', subtitle='pendiente de respuesta, hoy', color='#FFF7ED'),
-        # 19.0.8.0.0: meta de venta configurable (CRM › Configuración › Metas de venta mensuales)
-        dict(type='kpi', name='Meta de venta', code='meta', width='6', model=GOAL, since='19.0.8.0.0', sequence=81,
-             map={'periodo': 'date'}, measures=[m('Meta', 'meta', 'sum', 'amount')], value_format='monetary',
-             subtitle='Σ metas mensuales del periodo (de la empresa)', color='#EFF6FF'),
-        dict(type='kpi', name='Avance vs meta', code='avance_meta', width='6', since='19.0.8.0.0', sequence=82,
-             formula='div(venta, meta)', value_format='percent', color_mode='threshold', threshold='1',
-             subtitle='venta ganada / meta; rojo si es menor al 100 %', color='#F0FDF4'),
-        # ---------------- Gráficas ----------------
-        dict(type='section', name='Invitaciones a cotizar'),
-        dict(type='chart', name='Invitaciones a cotizar por mes', width='6', model='crm.lead',
-             domain=d(OPP, ARCHIVED, INVITATIONS), groupby='create_date', interval='month',
-             groupby2='report_invitation_status', chart_type='bar_stacked',
-             measures=[m('Invitaciones', 'invitaciones')]),
-        dict(type='chart', name='Histórico de invitaciones por trimestre', width='6', model='crm.lead',
-             domain=d(OPP, ARCHIVED, INVITATIONS), groupby='create_date', interval='quarter',
-             groupby2='report_invitation_status', chart_type='bar_stacked', map={'periodo': None},
-             subtitle='todos los años', measures=[m('Invitaciones', 'invitaciones')]),
-        # 19.0.8.0.0: la tabla "mes a mes" del requerimiento, con los meses en columnas
-        dict(type='table', name='Invitaciones a cotizar, mes a mes', width='12', model='crm.lead',
-             since='19.0.8.0.0', sequence=115, domain=d(OPP, ARCHIVED, INVITATIONS), groupby='create_date',
-             interval='month', table_transpose=True, row_label='Mes de creación',
-             subtitle='Clic en un número para ver las oportunidades.', measures=[
-                 m('Invitaciones a cotizar', 'invitaciones', value_format='integer'),
-                 m('Atendidos nuevos (Sin recompra)', 'sr', value_format='integer',
-                   extra_domain="[('report_invitation_status', '=', 'atendido_sin_recompra')]"),
-                 m('% atendidos nuevos', 'sr_pct', formula='div(sr, invitaciones)', value_format='percent'),
-                 m('Atendidos recompra', 'rc', value_format='integer',
-                   extra_domain="[('report_invitation_status', '=', 'atendido_recompra')]"),
-                 m('% atendidos recompra', 'rc_pct', formula='div(rc, invitaciones)', value_format='percent'),
-                 m('Atendidos otros (inadecuado / sin segmento)', 'otros', value_format='integer',
-                   extra_domain="[('report_invitation_status', 'in', ['atendido_inadecuado', "
-                                "'atendido_sin_segmento'])]"),
-                 m('% atendidos otros', 'otros_pct', formula='div(otros, invitaciones)', value_format='percent'),
-                 m('No atendidos', 'na', value_format='integer',
-                   extra_domain="[('report_invitation_status', '=', 'no_atendido')]"),
-                 m('% no atendidos', 'na_pct', formula='div(na, invitaciones)', value_format='percent'),
-             ]),
-        dict(type='section', name='Ganados, perdidos y venta'),
-        dict(type='chart', name='Ganados y perdidos por mes de cierre', width='6', model='crm.lead',
-             domain=d(OPP, ARCHIVED, "('report_close_status', '!=', False)"), groupby='date_closed',
-             interval='month', groupby2='report_close_status', chart_type='bar_stacked',
-             map={'periodo': 'date_closed'}, measures=[m('Cotizaciones', 'cotizaciones')]),
-        dict(type='chart', name='Venta por mes de cierre', width='6', model='crm.lead',
-             domain=d(OPP, "('won_status', '=', 'won')", NOT_EXCLUDED), groupby='date_closed', interval='month',
-             groupby2='report_segment', chart_type='bar_stacked', map={'periodo': 'date_closed'},
-             measures=[m('Venta', 'venta', 'sum', 'expected_revenue', value_format='monetary')]),
-        # 19.0.8.0.0: venta (barras) contra la meta mensual configurable (línea)
-        dict(type='chart', name='Venta por mes de cierre vs meta mensual', width='12', model='crm.lead',
-             since='19.0.8.0.0', sequence=141, domain=d(OPP, "('won_status', '=', 'won')", NOT_EXCLUDED),
-             groupby='date_closed', interval='month', chart_type='bar', map={'periodo': 'date_closed'},
-             subtitle='La meta se captura en CRM › Configuración › Metas de venta mensuales.', measures=[
-                 m('Venta ganada', 'venta', 'sum', 'expected_revenue', value_format='monetary', color='#2F5BEA'),
-                 m('Meta mensual', 'meta', 'sum', 'amount', source_model=GOAL, source_groupby_field='date',
-                   value_format='monetary', color='#F59E0B', series_type='line'),
-             ]),
-        dict(type='chart', name='Razones de pérdida', width='6', model='crm.lead',
-             domain=d(OPP, "('active', '=', False)", "('won_status', '=', 'lost')"), groupby='lost_reason_id',
-             chart_type='hbar', sort_mode='value_desc', map={'periodo': 'date_closed'}, show_legend=False,
-             measures=[m('Perdidos', 'perdidos')]),
-        dict(type='chart', name='Prospección Sin recompra por etapa', width='6', model='crm.lead',
-             domain=d(OPP, ARCHIVED, "('report_segment', '=', 'sin_recompra')",
-                      "('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'declinado'])"),
-             groupby='create_date', interval='month', groupby2='stage_id', chart_type='bar_stacked',
-             subtitle='por mes de creación', measures=[m('Oportunidades', 'oportunidades')]),
-        # ---------------- Embudo ----------------
-        dict(type='section', name='Embudo por segmento'),
-        dict(type='table', name='Embudo por segmento (periodo seleccionado)', width='12', model='crm.lead',
-             domain=d(OPP, ARCHIVED), groupby='report_segment', row_label='Segmento',
-             subtitle='Invitaciones por fecha de creación; ganados y perdidos por fecha de cierre.',
-             measures=[
-                 m('Invitaciones', 'invitaciones', extra_domain=d(INVITATIONS), value_format='integer'),
-                 m('Atendidos', 'atendidos', extra_domain=d(ATTENDED), value_format='integer'),
-                 m('Declinados', 'declinados', extra_domain="[('report_invitation_status', '=', 'no_atendido')]",
-                   value_format='integer'),
-                 m('Ganados', 'ganados', extra_domain=d(WON), period_field='date_closed', value_format='integer'),
-                 m('Perdidos', 'perdidos', extra_domain=d(LOST), period_field='date_closed', value_format='integer'),
-                 m('Pendientes', 'pendientes', formula='atendidos - ganados - perdidos', value_format='integer'),
-                 m('% bateo', 'bateo', formula='div(ganados, atendidos)', value_format='percent'),
-                 m('Efectividad', 'efectividad', formula='div(ganados, ganados + perdidos)', value_format='percent'),
-             ]),
-        # 19.0.8.0.0: antigüedad del pipeline enviado por rangos de días desde la creación
-        dict(type='section', name='Pipeline abierto por antigüedad', since='19.0.8.0.0', sequence=190),
-        dict(type='chart', name='Antigüedad del pipeline enviado', width='6', model='crm.lead',
-             since='19.0.8.0.0', sequence=200, domain=d(OPP, *SENT_PENDING), range_field='create_date',
-             range_bounds='30,60,90,180', chart_type='bar', map={'periodo': None},
-             subtitle='días desde la creación, hoy; barras = oportunidades, línea = monto', measures=[
-                 m('Oportunidades', 'oportunidades', value_format='integer', color='#2F5BEA'),
-                 m('Monto', 'monto', 'sum', 'expected_revenue', value_format='monetary', color='#F59E0B',
-                   series_type='line', right_axis=True),
-             ]),
-        dict(type='table', name='Pipeline enviado por rango de días', width='6', model='crm.lead',
-             since='19.0.8.0.0', sequence=210, domain=d(OPP, *SENT_PENDING), range_field='create_date',
-             range_bounds='30,60,90,180', row_label='Días desde la creación', map={'periodo': None},
-             measures=[
-                 m('Oportunidades', 'oportunidades', value_format='integer'),
-                 m('Monto', 'monto', 'sum', 'expected_revenue', value_format='monetary'),
-                 m('% del monto', 'pct', formula='div(monto, pipeline)', value_format='percent'),
-             ]),
-    ],
-}
-
 # ---------------------------------------------------------------------------
 # Listados comerciales (19.0.9.0.0): una sección por lámina del Reporte
 # Comercial (4b a 9): indicadores Sin Recompra / Recompra, gráfica y listado.
@@ -231,8 +88,8 @@ def segment_kpis(prefix, label, base, period, sequence, color, amount_note=True)
 
 
 def hidden_kpi(name, code, domain, period, sequence, aggregate='count', field=None, value_format='integer',
-               formula=None):
-    item = dict(type='kpi', name=name, code=code, hidden=True, since=V9, sequence=sequence,
+               formula=None, since=V9):
+    item = dict(type='kpi', name=name, code=code, hidden=True, since=since, sequence=sequence,
                 value_format=value_format, abbreviate=value_format not in ('number', 'number1'))
     if formula:
         item['formula'] = formula
@@ -240,6 +97,341 @@ def hidden_kpi(name, code, domain, period, sequence, aggregate='count', field=No
         item.update(model='crm.lead', domain=domain, map={'periodo': period},
                     measures=[m(name, code, aggregate, field)])
     return item
+
+
+
+# ---------------------------------------------------------------------------
+# Seguimiento comercial (19.0.10.0.0): láminas 0 a 4 y 10 del Reporte Comercial.
+# Todos los elementos llevan secuencia fija; la migración acomoda los que ya
+# existen y agrega los nuevos (since=V10).
+# ---------------------------------------------------------------------------
+V10 = '19.0.10.0.0'
+SALE_D = (OPP, "('won_status', '=', 'won')", NOT_EXCLUDED)
+WON_C = (OPP, ARCHIVED, WON)
+LOST_C = (OPP, ARCHIVED, LOST)
+ATT_C = (OPP, ARCHIVED, ATTENDED)
+INV_C = (OPP, ARCHIVED, INVITATIONS)
+DECLINED = "('report_invitation_status', '=', 'no_atendido')"
+PIPE_D = (OPP,) + SENT_PENDING
+ORIGIN = 'x_studio_cmo_se_gener_el_lead'
+
+
+def _since(days, field):
+    return "('%s', '>=', (context_today() - relativedelta(days=%d)).strftime('%%Y-%%m-%%d'))" % (field, days)
+
+
+QUARTER_START = "context_today().replace(month=(context_today().month - 1) // 3 * 3 + 1, day=1)"
+THIS_QUARTER = "('create_date', '>=', %s.strftime('%%Y-%%m-%%d'))" % QUARTER_START
+LAST_QUARTER = ("('create_date', '>=', (%s - relativedelta(months=3)).strftime('%%Y-%%m-%%d'))" % QUARTER_START,
+                "('create_date', '<', %s.strftime('%%Y-%%m-%%d'))" % QUARTER_START)
+
+
+def hk(name, code, domain=None, period=False, sequence=60, aggregate='count', field=None, value_format='integer',
+       formula=None):
+    """Indicador oculto de Seguimiento comercial (period=False: periodo por omisión, create_date)."""
+    item = hidden_kpi(name, code, d(*domain) if domain else None, None, sequence, aggregate, field, value_format,
+                      formula, since=V10)
+    if not formula:
+        item['map'] = {} if period is False else {'periodo': period}
+    return item
+
+
+COMMERCIAL = {
+    'xmlid': 'dashboard_commercial',
+    'name': 'Seguimiento comercial',
+    'category': 'Comercial',
+    'sequence': 10,
+    'groups': ['sales_team.group_sale_salesman'],
+    'description': 'Dirección de Nuevos Proyectos, como el Reporte Comercial: resumen ejecutivo, invitaciones a '
+                   'cotizar, ganados y perdidos, venta vs meta y origen de leads. Excluye "Ganados en 0\'s". '
+                   'Sin Recompra incluye Inadecuado.',
+    'filters': [
+        dict(key='periodo', name='Periodo', filter_type='date', field_name='create_date', default_period='this_year'),
+        dict(key='vendedor', name='Vendedor', filter_type='many2one', field_name='user_id', comodel='res.users',
+             multiple=True, record_domain="[('share', '=', False)]"),
+        dict(key='segmento', name='Segmento', filter_type='selection', field_name='report_segment',
+             selection_model='crm.lead'),
+    ],
+    'widgets': [
+        # ================= Resumen ejecutivo =================
+        dict(type='section', name='Resumen ejecutivo', since=V10, sequence=5,
+             subtitle='Venta y cierres por fecha de cierre; invitaciones y atendidas por fecha de creación'),
+        # Renglón 1
+        dict(type='kpi', name='Venta ganada', code='venta', width='3', model='crm.lead', domain=d(*SALE_D),
+             map={'periodo': 'date_closed'}, sequence=10,
+             measures=[m('Venta', 'venta', 'sum', REVENUE)], value_format='monetary',
+             subtitle='{ganados} proyectos · SR {venta_sr} · R {venta_r}', color='#EFF6FF'),
+        dict(type='kpi', name='Avance vs meta', code='avance_meta', width='3', since='19.0.8.0.0', sequence=12,
+             formula='div(venta, meta)', value_format='percent', color_mode='threshold', threshold='1',
+             subtitle='{venta} de {meta} · rojo si es menor al 100 %', color='#F0FDF4'),
+        dict(type='kpi', name='Meta de venta', code='meta', width='3', model=GOAL, since='19.0.8.0.0', sequence=14,
+             map={'periodo': 'date'}, measures=[m('Meta', 'meta', 'sum', 'amount')], value_format='monetary',
+             subtitle='Σ metas mensuales del periodo (de la empresa)', color='#EFF6FF'),
+        dict(type='kpi', name='Pipeline enviado', code='pipeline', width='3', model='crm.lead', domain=d(*PIPE_D),
+             map={'periodo': None}, sequence=16, measures=[m('Pipeline', 'pipeline', 'sum', REVENUE)],
+             value_format='monetary', color='#FFF7ED',
+             subtitle='{pipeline_n} cotizaciones · {env_180} con más de 180 días ({env_180_monto})'),
+        # Renglón 2
+        dict(type='kpi', name='Ganados', code='ganados', width='3', model='crm.lead', domain=d(*WON_C),
+             map={'periodo': 'date_closed'}, sequence=20, measures=[m('Ganados', 'ganados')], value_format='integer',
+             abbreviate=False, subtitle='cotizaciones ganadas · SR {ganados_sr} · R {ganados_r}', color='#EFF6FF'),
+        dict(type='kpi', name='Perdidos', code='perdidos', width='3', model='crm.lead', domain=d(*LOST_C),
+             map={'periodo': 'date_closed'}, sequence=22, measures=[m('Perdidos', 'perdidos')],
+             value_format='integer', abbreviate=False,
+             subtitle='cotizaciones perdidas · SR {perdidos_sr} · R {perdidos_r}', color='#FEF2F2'),
+        dict(type='kpi', name='Efectividad de cierre', code='efectividad', width='3', sequence=24,
+             formula='div(ganados, ganados + perdidos)', value_format='percent',
+             subtitle='ganados / (ganados + perdidos) · SR {efectividad_sr} · R {efectividad_r}', color='#F0FDF4'),
+        dict(type='kpi', name='Semana (últimos 7 días)', code='venta_7d', width='3', model='crm.lead',
+             domain=d(*(SALE_D + (_since(7, 'date_closed'),))), map={'periodo': None}, since=V10, sequence=26,
+             measures=[m('Venta', 'venta_7d', 'sum', REVENUE)], value_format='monetary', color='#F9FAFB',
+             subtitle='{ganados_7d} ganados · {perdidos_7d} perdidos por {perdidos_7d_monto} · '
+                      '{leads_7d} leads nuevos'),
+        # Renglón 3
+        dict(type='kpi', name='Invitaciones a cotizar', code='invitaciones', width='3', model='crm.lead',
+             domain=d(*INV_C), sequence=30, measures=[m('Invitaciones', 'invitaciones')],
+             value_format='integer', abbreviate=False, subtitle='cotizadas + declinadas', color='#F9FAFB'),
+        dict(type='kpi', name='Atendidas (cotizadas)', code='atendidas', width='3', model='crm.lead',
+             domain=d(*ATT_C), sequence=32, measures=[m('Atendidas', 'atendidas')],
+             value_format='integer', abbreviate=False,
+             subtitle='por fecha de creación · {atendidas_pct} de las invitaciones', color='#F9FAFB'),
+        dict(type='kpi', name='% de bateo', code='bateo', width='3', sequence=34, formula='div(ganados, atendidas)',
+             value_format='percent', subtitle='SR {bateo_sr} · R {bateo_r} · base hist. {bateo_hist}',
+             color='#F0FDF4'),
+        dict(type='kpi', name='Semanas creación→cierre', code='semanas', width='3', model='crm.lead',
+             domain=d(*SALE_D), map={'periodo': 'date_closed'}, since=V10, sequence=36,
+             measures=[m('Semanas', 'semanas', 'avg', 'report_close_weeks')], value_format='number1',
+             abbreviate=False, subtitle='promedio de ganados · SR {semanas_sr} · R {semanas_r}', color='#F9FAFB'),
+        # Ocultos (para notas y fórmulas)
+        hk('Venta SR (cierre)', 'venta_sr', SALE_D + (SR,), 'date_closed', 50, 'sum', REVENUE, 'monetary'),
+        hk('Venta R (cierre)', 'venta_r', SALE_D + (R,), 'date_closed', 51, 'sum', REVENUE, 'monetary'),
+        hk('Ganados SR', 'ganados_sr', WON_C + (SR,), 'date_closed', 52),
+        hk('Ganados R', 'ganados_r', WON_C + (R,), 'date_closed', 53),
+        hk('Perdidos SR', 'perdidos_sr', LOST_C + (SR,), 'date_closed', 54),
+        hk('Perdidos R', 'perdidos_r', LOST_C + (R,), 'date_closed', 55),
+        hk('Efectividad SR', 'efectividad_sr', sequence=56, value_format='percent',
+           formula='div(ganados_sr, ganados_sr + perdidos_sr)'),
+        hk('Efectividad R', 'efectividad_r', sequence=57, value_format='percent',
+           formula='div(ganados_r, ganados_r + perdidos_r)'),
+        hk('Atendidas SR', 'atendidas_sr', ATT_C + (SR,), sequence=58),
+        hk('Atendidas R', 'atendidas_r', ATT_C + (R,), sequence=59),
+        hk('Bateo SR', 'bateo_sr', sequence=60, value_format='percent', formula='div(ganados_sr, atendidas_sr)'),
+        hk('Bateo R', 'bateo_r', sequence=61, value_format='percent', formula='div(ganados_r, atendidas_r)'),
+        hk('Atendidas %', 'atendidas_pct', sequence=62, value_format='percent', formula='div(atendidas, invitaciones)'),
+        hk('Ganados (histórico)', 'ganados_hist', WON_C, None, 63),
+        hk('Ganados SR (histórico)', 'ganados_hist_sr', WON_C + (SR,), None, 64),
+        hk('Ganados R (histórico)', 'ganados_hist_r', WON_C + (R,), None, 65),
+        hk('Atendidas SR (histórico)', 'atendidas_hist_sr', ATT_C + (SR,), None, 66),
+        hk('Atendidas R (histórico)', 'atendidas_hist_r', ATT_C + (R,), None, 67),
+        hk('Bateo histórico SR', 'bateo_hist_sr', sequence=68, value_format='percent',
+           formula='div(ganados_hist_sr, atendidas_hist_sr)'),
+        hk('Bateo histórico R', 'bateo_hist_r', sequence=69, value_format='percent',
+           formula='div(ganados_hist_r, atendidas_hist_r)'),
+        hk('Cotizaciones enviadas', 'pipeline_n', PIPE_D, None, 70),
+        hk('Enviadas > 180 días', 'env_180', PIPE_D + (_since(180, 'create_date').replace('>=', '<'),), None, 71),
+        hk('Enviadas > 180 días (monto)', 'env_180_monto', PIPE_D + (_since(180, 'create_date').replace('>=', '<'),),
+           None, 72, 'sum', REVENUE, 'monetary'),
+        hk('Ganados 7 días', 'ganados_7d', WON_C + (_since(7, 'date_closed'),), None, 73),
+        hk('Perdidos 7 días', 'perdidos_7d', LOST_C + (_since(7, 'date_closed'),), None, 74),
+        hk('Perdidos 7 días (monto)', 'perdidos_7d_monto', LOST_C + (_since(7, 'date_closed'),), None, 75, 'sum',
+           REVENUE, 'monetary'),
+        hk('Leads nuevos 7 días', 'leads_7d', (ARCHIVED, _since(7, 'create_date')), None, 76),
+        hk('Semanas SR', 'semanas_sr', SALE_D + (SR,), 'date_closed', 77, 'avg', 'report_close_weeks', 'number1'),
+        hk('Semanas R', 'semanas_r', SALE_D + (R,), 'date_closed', 78, 'avg', 'report_close_weeks', 'number1'),
+        hk('Ticket SR', 'ticket_sr', sequence=79, value_format='monetary', formula='div(venta_sr, ganados_sr)'),
+        hk('Ticket R', 'ticket_r', sequence=80, value_format='monetary', formula='div(venta_r, ganados_r)'),
+        hk('Venta SR %', 'venta_sr_pct', sequence=81, value_format='percent', formula='div(venta_sr, venta)'),
+        hk('Venta R %', 'venta_r_pct', sequence=82, value_format='percent', formula='div(venta_r, venta)'),
+        hk('Ingenierías (proyectos)', 'ing_n', SALE_D + ("('name', 'ilike', 'ingenier')",), 'date_closed', 83),
+        hk('Ingenierías %', 'ing_pct', sequence=84, value_format='percent', formula='div(ing_monto, venta)'),
+        hk('Invitaciones (histórico)', 'inv_hist', INV_C, None, 85),
+        hk('Cotizados % (histórico)', 'cot_hist_pct', sequence=86, value_format='percent',
+           formula='div(atendidas_hist, inv_hist)'),
+        hk('Declinados % (histórico)', 'decl_hist_pct', sequence=87, value_format='percent',
+           formula='div(declinados_hist, inv_hist)'),
+        hk('Invitaciones trimestre anterior', 'inv_prev_q', INV_C + LAST_QUARTER, None, 88),
+        hk('Cotizados SR trimestre', 'cot_sr_q', ATT_C + (SR, THIS_QUARTER), None, 89),
+        hk('Cotizados R trimestre', 'cot_r_q', ATT_C + (R, THIS_QUARTER), None, 90),
+        hk('Declinados trimestre', 'decl_q', INV_C + (DECLINED, THIS_QUARTER), None, 91),
+        # ================= 1–2. Invitaciones a cotizar =================
+        dict(type='section', name='Invitaciones a cotizar', sequence=95),
+        dict(type='chart', name='Invitaciones a cotizar por mes', width='6', model='crm.lead', domain=d(*INV_C),
+             groupby='create_date', interval='month', groupby2='report_invitation_status', chart_type='bar_stacked',
+             show_values=True, sequence=100, measures=[m('Invitaciones', 'invitaciones')]),
+        dict(type='chart', name='Histórico de invitaciones por trimestre', width='6', model='crm.lead',
+             domain=d(*INV_C), groupby='create_date', interval='quarter', groupby2='report_invitation_status',
+             chart_type='bar_stacked', map={'periodo': None}, show_values=True, sequence=110,
+             subtitle='todos los años · {inv_hist} invitaciones', measures=[m('Invitaciones', 'invitaciones')]),
+        dict(type='kpi', name='Cotizados (histórico)', code='atendidas_hist', width='3', model='crm.lead',
+             domain=d(*ATT_C), map={'periodo': None}, since=V10, sequence=111,
+             measures=[m('Cotizados', 'atendidas_hist')], value_format='integer', abbreviate=False,
+             subtitle='{cot_hist_pct} de las invitaciones, todos los años', color='#F9FAFB'),
+        dict(type='kpi', name='Declinados (histórico)', code='declinados_hist', width='3', model='crm.lead',
+             domain=d(*(INV_C + (DECLINED,))), map={'periodo': None}, since=V10, sequence=112,
+             measures=[m('Declinados', 'declinados_hist')], value_format='integer', abbreviate=False,
+             subtitle='{decl_hist_pct} de las invitaciones, todos los años', color='#F9FAFB'),
+        dict(type='kpi', name='% de bateo histórico', code='bateo_hist', width='3', since=V10, sequence=113,
+             formula='div(ganados_hist, atendidas_hist)', value_format='percent',
+             subtitle='base congelada · SR {bateo_hist_sr} · R {bateo_hist_r}', color='#F0FDF4'),
+        dict(type='kpi', name='Trimestre en curso', code='inv_q', width='3', model='crm.lead',
+             domain=d(*(INV_C + (THIS_QUARTER,))), map={'periodo': None}, since=V10, sequence=114,
+             measures=[m('Invitaciones', 'inv_q')], value_format='integer', abbreviate=False, color='#F9FAFB',
+             subtitle='invitaciones · vs {inv_prev_q} el trimestre anterior · SR cotizados {cot_sr_q} · '
+                      'R cotizados {cot_r_q} · declinados {decl_q}'),
+        dict(type='table', name='Invitaciones a cotizar, mes a mes', width='12', model='crm.lead',
+             since='19.0.8.0.0', sequence=118, domain=d(*INV_C), groupby='create_date',
+             interval='month', table_transpose=True, row_label='Mes de creación',
+             subtitle='Clic en un número para ver las oportunidades.', measures=[
+                 m('Invitaciones a cotizar', 'invitaciones', value_format='integer'),
+                 m('Atendidos nuevos (Sin recompra)', 'sr', value_format='integer',
+                   extra_domain="[('report_invitation_status', '=', 'atendido_sin_recompra')]"),
+                 m('% atendidos nuevos', 'sr_pct', formula='div(sr, invitaciones)', value_format='percent'),
+                 m('Atendidos recompra', 'rc', value_format='integer',
+                   extra_domain="[('report_invitation_status', '=', 'atendido_recompra')]"),
+                 m('% atendidos recompra', 'rc_pct', formula='div(rc, invitaciones)', value_format='percent'),
+                 m('Atendidos otros (inadecuado / sin segmento)', 'otros', value_format='integer',
+                   extra_domain="[('report_invitation_status', 'in', ['atendido_inadecuado', "
+                                "'atendido_sin_segmento'])]"),
+                 m('% atendidos otros', 'otros_pct', formula='div(otros, invitaciones)', value_format='percent'),
+                 m('No atendidos', 'na', value_format='integer', extra_domain='[%s]' % DECLINED),
+                 m('% no atendidos', 'na_pct', formula='div(na, invitaciones)', value_format='percent'),
+             ]),
+        # ================= 3–4. Ganados, perdidos y venta =================
+        dict(type='section', name='Ganados, perdidos y venta', sequence=120),
+        dict(type='chart', name='Ganados y perdidos por mes de cierre', width='6', model='crm.lead',
+             domain=d(OPP, ARCHIVED, "('report_close_status', '!=', False)"), groupby='date_closed',
+             interval='month', groupby2='report_close_status', chart_type='bar_stacked', show_values=True,
+             map={'periodo': 'date_closed'}, sequence=130, height=420,
+             measures=[m('Cotizaciones', 'cotizaciones')]),
+        dict(type='table', name='Embudo: Totales, Sin Recompra y Recompra', width='6', model='crm.lead',
+             domain=d(OPP, ARCHIVED), groupby='report_segment_group', table_transpose=True, total_first=True,
+             since=V10, sequence=132, height=420,
+             subtitle='Invitaciones, atendidos y declinados por fecha de creación; ganados y perdidos por fecha '
+                      'de cierre. Clic en un número para ver las oportunidades.',
+             measures=[
+                 m('Invitaciones a cotizar', 'invitaciones', extra_domain=d(INVITATIONS), value_format='integer'),
+                 m('Atendidos (cotizados)', 'atendidos', extra_domain=d(ATTENDED), value_format='integer'),
+                 m('% de las invitaciones', 'atendidos_pct', formula='div(atendidos, invitaciones)',
+                   value_format='percent'),
+                 m('Declinados', 'declinados', extra_domain=d(DECLINED), value_format='integer'),
+                 m('% de las invitaciones', 'declinados_pct', formula='div(declinados, invitaciones)',
+                   value_format='percent'),
+                 m('Ganados', 'ganados', extra_domain=d(WON), period_field='date_closed', value_format='integer'),
+                 m('% de los atendidos', 'ganados_pct', formula='div(ganados, atendidos)', value_format='percent'),
+                 m('Perdidos', 'perdidos', extra_domain=d(LOST), period_field='date_closed', value_format='integer'),
+                 m('% de los atendidos', 'perdidos_pct', formula='div(perdidos, atendidos)', value_format='percent'),
+                 m('Pendientes de respuesta', 'pendientes', formula='atendidos - ganados - perdidos',
+                   value_format='integer'),
+                 m('% de los atendidos', 'pendientes_pct', formula='div(pendientes, atendidos)',
+                   value_format='percent'),
+                 m('% de bateo (G / atendidos)', 'bateo', formula='div(ganados, atendidos)', value_format='percent'),
+                 m('Efectividad de cierre (G / G+P)', 'efectividad', formula='div(ganados, ganados + perdidos)',
+                   value_format='percent'),
+                 m('Ganados (histórico)', 'ganados_h', extra_domain=d(WON), ignore_period=True, hidden=True),
+                 m('Atendidos (histórico)', 'atendidos_h', extra_domain=d(ATTENDED), ignore_period=True, hidden=True),
+                 m('% bateo histórico (base)', 'bateo_h', formula='div(ganados_h, atendidos_h)',
+                   value_format='percent'),
+             ]),
+        dict(type='kpi', name='Venta Sin Recompra', code='venta_sr_v', width='3', since=V10, sequence=134,
+             formula='venta_sr', value_format='monetary', color='#EFF6FF',
+             subtitle='{ganados_sr} proyectos · {venta_sr_pct} · ticket {ticket_sr}'),
+        dict(type='kpi', name='Venta Recompra', code='venta_r_v', width='3', since=V10, sequence=135,
+             formula='venta_r', value_format='monetary', color='#EFF6FF',
+             subtitle='{ganados_r} proyectos · {venta_r_pct} · ticket {ticket_r}'),
+        dict(type='kpi', name='Ticket promedio', code='ticket', width='3', since=V10, sequence=136,
+             formula='div(venta, ganados)', value_format='monetary', color='#F9FAFB',
+             subtitle='venta ganada / {ganados} proyectos'),
+        dict(type='kpi', name='Ingenierías', code='ing_monto', width='3', model='crm.lead',
+             domain=d(*(SALE_D + ("('name', 'ilike', 'ingenier')",))), map={'periodo': 'date_closed'}, since=V10,
+             sequence=137, measures=[m('Ingenierías', 'ing_monto', 'sum', REVENUE)], value_format='monetary',
+             subtitle='{ing_n} proyectos · {ing_pct} de la venta (nombre contiene "ingenier")', color='#F9FAFB'),
+        dict(type='chart', name='Venta por mes de cierre', width='6', model='crm.lead', domain=d(*SALE_D),
+             groupby='date_closed', interval='month', groupby2='report_segment', chart_type='bar_stacked',
+             map={'periodo': 'date_closed'}, show_values=True, sequence=140,
+             measures=[m('Venta', 'venta', 'sum', REVENUE, value_format='monetary')]),
+        dict(type='chart', name='Venta por trimestre vs meta acumulada', width='6', model='crm.lead',
+             domain=d(*SALE_D), groupby='date_closed', interval='quarter', chart_type='bar',
+             map={'periodo': 'date_closed'}, show_values=True, since=V10, sequence=142,
+             subtitle='La meta se captura en CRM › Configuración › Metas de venta mensuales.', measures=[
+                 m('Venta del trimestre', 'venta', 'sum', REVENUE, value_format='monetary', color='#2F5BEA'),
+                 m('Acumulado', 'acumulado', 'sum', REVENUE, value_format='monetary', color='#0B1324',
+                   cumulative=True),
+                 m('Meta acumulada', 'meta', 'sum', 'amount', source_model=GOAL, source_groupby_field='date',
+                   value_format='monetary', color='#F28C28', cumulative=True),
+             ]),
+        dict(type='chart', name='Venta por mes de cierre vs meta mensual', width='12', model='crm.lead',
+             since='19.0.8.0.0', sequence=144, domain=d(*SALE_D),
+             groupby='date_closed', interval='month', chart_type='bar', map={'periodo': 'date_closed'},
+             subtitle='La meta se captura en CRM › Configuración › Metas de venta mensuales.', measures=[
+                 m('Venta ganada', 'venta', 'sum', REVENUE, value_format='monetary', color='#2F5BEA'),
+                 m('Meta mensual', 'meta', 'sum', 'amount', source_model=GOAL, source_groupby_field='date',
+                   value_format='monetary', color='#F59E0B', series_type='line'),
+             ]),
+        dict(type='chart', name='Razones de pérdida', width='6', model='crm.lead',
+             domain=d(OPP, "('active', '=', False)", "('won_status', '=', 'lost')"), groupby='lost_reason_id',
+             chart_type='hbar', sort_mode='value_desc', map={'periodo': 'date_closed'}, show_legend=False,
+             show_values=True, sequence=150, measures=[m('Perdidos', 'perdidos')]),
+        dict(type='chart', name='Prospección Sin recompra por etapa', width='6', model='crm.lead',
+             domain=d(*PROSPECTING_D), groupby='create_date', interval='month', groupby2='stage_id',
+             chart_type='bar_stacked', show_values=True, sequence=160,
+             subtitle='por mes de creación', measures=[m('Oportunidades', 'oportunidades')]),
+        # ================= 10. Origen de leads Sin Recompra =================
+        dict(type='section', name='Origen de leads Sin Recompra', since=V10, sequence=170, requires=ORIGIN,
+             subtitle='¿Cómo se generó el lead? · leads creados en el periodo, invitaciones cotizadas y ganados'),
+        dict(type='chart', name='Leads Sin Recompra por canal de origen', width='6', model='crm.lead',
+             domain=d(OPP, ARCHIVED, "('report_segment', '=', 'sin_recompra')"), groupby=ORIGIN,
+             chart_type='hbar', sort_mode='value_desc', show_values=True, since=V10, sequence=172, height=380,
+             requires=ORIGIN, measures=[
+                 m('Leads', 'leads', color='#C9CED8'),
+                 m('Cotizados', 'cotizados', extra_domain=d(ATTENDED), color='#8DA8F0'),
+                 m('Ganados', 'ganados', extra_domain="[('won_status', '=', 'won')]", color='#2F5BEA'),
+             ]),
+        dict(type='table', name='Origen de leads Sin Recompra (tabla)', width='6', model='crm.lead',
+             domain=d(OPP, ARCHIVED, "('report_segment', '=', 'sin_recompra')"), groupby=ORIGIN,
+             sort_mode='value_desc', row_label='Origen', since=V10, sequence=174, height=380, requires=ORIGIN,
+             subtitle='% cot. = cotizados / leads · % gan. = ganados / cotizados', measures=[
+                 m('Leads', 'leads', value_format='integer'),
+                 m('Cotizados', 'cotizados', extra_domain=d(ATTENDED), value_format='integer'),
+                 m('Ganados', 'ganados', extra_domain="[('won_status', '=', 'won')]", value_format='integer'),
+                 m('% cot.', 'pct_cot', formula='div(cotizados, leads)', value_format='percent'),
+                 m('% gan.', 'pct_gan', formula='div(ganados, cotizados)', value_format='percent'),
+             ]),
+        # ================= Pipeline abierto por antigüedad (19.0.8.0.0) =================
+        dict(type='section', name='Pipeline abierto por antigüedad', since='19.0.8.0.0', sequence=190),
+        dict(type='chart', name='Antigüedad del pipeline enviado', width='6', model='crm.lead',
+             since='19.0.8.0.0', sequence=200, domain=d(*PIPE_D), range_field='create_date',
+             range_bounds='30,60,90,180', chart_type='bar', map={'periodo': None}, show_values=True,
+             subtitle='días desde la creación, hoy; barras = oportunidades, línea = monto', measures=[
+                 m('Oportunidades', 'oportunidades', value_format='integer', color='#2F5BEA'),
+                 m('Monto', 'monto', 'sum', REVENUE, value_format='monetary', color='#F59E0B',
+                   series_type='line', right_axis=True),
+             ]),
+        dict(type='table', name='Pipeline enviado por rango de días', width='6', model='crm.lead',
+             since='19.0.8.0.0', sequence=210, domain=d(*PIPE_D), range_field='create_date',
+             range_bounds='30,60,90,180', row_label='Días desde la creación', map={'periodo': None},
+             measures=[
+                 m('Oportunidades', 'oportunidades', value_format='integer'),
+                 m('Monto', 'monto', 'sum', REVENUE, value_format='monetary'),
+                 m('% del monto', 'pct', formula='div(monto, pipeline)', value_format='percent'),
+             ]),
+    ],
+}
+
+# Notas de fábrica anteriores: la migración 19.0.10.0.0 solo cambia la nota de
+# un elemento si todavía tiene la de fábrica (no pisa cambios del usuario).
+OLD_COMMERCIAL_SUBTITLES = {
+    'Venta ganada': 'por fecha de cierre',
+    'Ganados': 'cotizaciones ganadas',
+    'Perdidos': 'cotizaciones perdidas',
+    'Efectividad de cierre': 'ganados / (ganados + perdidos)',
+    'Atendidas (cotizadas)': 'por fecha de creación',
+    '% de bateo': 'ganados / atendidas',
+    'Pipeline enviado': 'pendiente de respuesta, hoy',
+    'Avance vs meta': 'venta ganada / meta; rojo si es menor al 100 %',
+    'Histórico de invitaciones por trimestre': 'todos los años',
+}
+# Reemplazados por la tabla "Embudo: Totales, Sin Recompra y Recompra"
+OLD_COMMERCIAL_NAMES = ['Embudo por segmento', 'Embudo por segmento (periodo seleccionado)']
 
 
 LIST_COLUMNS = 'partner_id, name, report_segment, user_id, expected_revenue'
@@ -550,8 +742,14 @@ def _create_dashboard(env, spec):
     for item in spec['widgets']:
         if 'sequence' not in item:      # los elementos con secuencia fija no recorren a los demás
             seq += 10
-        _create_widget(env, dashboard, filters, item, item.get('sequence', seq))
+        if _available(env, item):
+            _create_widget(env, dashboard, filters, item, item.get('sequence', seq))
     return dashboard
+
+
+def _available(env, item):
+    """Los elementos con 'requires' (p. ej. un campo de Studio) solo se crean si el campo existe."""
+    return not item.get('requires') or item['requires'] in env[item.get('model') or 'crm.lead']._fields
 
 
 def _ensure_widgets(env, specs=None, since=None, xmlids=None):
@@ -578,7 +776,8 @@ def _ensure_widgets(env, specs=None, since=None, xmlids=None):
             if match:
                 filters[flt['key']] = match[:1]
         for item in spec['widgets']:
-            if not item.get('since') or (since and item['since'] != since) or item['name'] in existing:
+            if not item.get('since') or (since and item['since'] != since) or item['name'] in existing \
+                    or not _available(env, item):
                 continue
             item = dict(item, map={key: path for key, path in item.get('map', {}).items() if key in filters})
             _create_widget(env, dashboard, filters, item, item.get('sequence', 1000))
@@ -634,6 +833,7 @@ def _create_widget(env, dashboard, filters, item, sequence):
         'source_model_id': env['ir.model']._get_id(ms['source_model']) if ms.get('source_model') else False,
         'source_groupby_field': ms.get('source_groupby_field'),
         'series_type': ms.get('series_type') or False, 'right_axis': ms.get('right_axis', False),
+        'cumulative': ms.get('cumulative', False), 'ignore_period': ms.get('ignore_period', False),
         'extra_domain': ms.get('extra_domain'), 'period_field': ms.get('period_field'),
         'formula': ms.get('formula'), 'value_format': ms.get('value_format', item.get('value_format', 'number')),
         'color_mode': ms.get('color_mode', 'none'), 'threshold': ms.get('threshold'),
@@ -662,3 +862,36 @@ def _upgrade_commercial_lists(env):
     slow = dashboard.widget_ids.filtered(lambda w: w.name.startswith('Oportunidades lentas'))
     slow.write({'sequence': 700})
     return _ensure_widgets(env, since=V9, xmlids=[COMMERCIAL_LISTS['xmlid']])
+
+
+def _upgrade_commercial_v10(env):
+    """19.0.10.0.0: "Seguimiento comercial" como las láminas 0 a 4 y 10 del Reporte Comercial.
+
+    * Acomoda los elementos de fábrica que ya existen (secuencia, ancho y
+      números sobre las barras) y les pone las notas con valores, solo si
+      todavía tienen la nota de fábrica anterior.
+    * Quita el "Embudo por segmento" (lo reemplaza la tabla Totales / SR / R).
+    * Agrega los elementos nuevos.
+    """
+    dashboard = env.ref('%s.%s' % (MODULE, COMMERCIAL['xmlid']), raise_if_not_found=False)
+    if not dashboard:
+        return []
+    dashboard.widget_ids.filtered(lambda w: w.name in OLD_COMMERCIAL_NAMES).unlink()
+    dashboard.description = COMMERCIAL['description']
+    for item in COMMERCIAL['widgets']:
+        if item.get('since') == V10:
+            continue
+        widget = dashboard.widget_ids.filtered(lambda w, item=item: w.name == item['name']
+                                               and w.widget_type == item['type'])[:1]
+        if not widget:
+            continue
+        vals = {'sequence': item['sequence']}
+        if item['type'] != 'section':
+            vals['width'] = item.get('width', '12')
+        if item.get('show_values'):
+            vals['show_values'] = True
+        old_subtitle = OLD_COMMERCIAL_SUBTITLES.get(item['name'])
+        if old_subtitle and (widget.subtitle or '') == old_subtitle:
+            vals['subtitle'] = item.get('subtitle')
+        widget.write(vals)
+    return _ensure_widgets(env, since=V10, xmlids=[COMMERCIAL['xmlid']])

@@ -5,3 +5,4 @@ from . import test_business_dashboard
 from . import test_week_pdf
 from . import test_dashboard_goals_ranges
 from . import test_dashboard_lists
+from . import test_commercial_v10

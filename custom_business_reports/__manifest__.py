@@ -41,8 +41,13 @@ venta vs meta) y antigüedad del pipeline por rangos de días.
 19.0.9.0.0: "Listados comerciales" como el Reporte Comercial: ganados (SR y R
 con semanas creación→cierre), perdidos, cancelados, en pausa, pipeline abierto
 y prospección, cada uno con indicadores, gráfica y listado.
+
+19.0.10.0.0: "Seguimiento comercial" como el Reporte Comercial: resumen
+ejecutivo con desglose Sin Recompra / Recompra, histórico de invitaciones con
+sus indicadores, embudo Totales / SR / R, venta por trimestre vs meta
+acumulada, ingenierías y origen de leads Sin Recompra.
 """,
-    'version': '19.0.9.0.0',
+    'version': '19.0.10.0.0',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',

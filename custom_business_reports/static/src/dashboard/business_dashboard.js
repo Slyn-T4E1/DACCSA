@@ -36,7 +36,7 @@ function formatValue(value, format, { abbreviate = false, currency = { symbol: "
     const sign = number < 0 ? "-" : "";
     let text;
     if (abbreviate && abs >= 1e6) {
-        text = `${(abs / 1e6).toLocaleString("es-MX", { maximumFractionDigits: abs >= 1e8 ? 0 : 1 })} M`;
+        text = `${(abs / 1e6).toLocaleString("es-MX", { maximumFractionDigits: 1 })} M`;
     } else if (abbreviate && abs >= 1e4) {
         text = `${(abs / 1e3).toLocaleString("es-MX", { maximumFractionDigits: 0 })} k`;
     } else if (format === "integer" || (format === "number" && Number.isInteger(abs))) {

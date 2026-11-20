@@ -41,6 +41,12 @@ Cálculo (get_dashboard_data):
   * Números sobre las barras (show_values).
   * Dominios con fechas relativas: context_today() y relativedelta, p. ej.
     [('create_date', '>=', (context_today() - relativedelta(months=2)).strftime('%Y-%m-01'))].
+
+19.0.10.0.0:
+  * Medidas acumuladas (cumulative): suma corrida por grupo, p. ej. venta
+    acumulada y meta acumulada por trimestre.
+  * Medidas que no usan el periodo del tablero (ignore_period), p. ej. el
+    % de bateo histórico junto a los valores del año.
 """
 import calendar
 import logging
@@ -113,7 +119,7 @@ def _short_number(value, value_format, abbreviate=True, symbol='$'):
         return ('%.1f %%' % (value * 100)).replace('.0 %', ' %')
     amount, sign = abs(value), '-' if value < 0 else ''
     if abbreviate and amount >= 1e6:
-        text = ('{:,.0f}' if amount >= 1e8 else '{:,.1f}').format(amount / 1e6).removesuffix('.0') + ' M'
+        text = '{:,.1f}'.format(amount / 1e6).removesuffix('.0') + ' M'
     elif abbreviate and amount >= 1e4:
         text = '{:,.0f} k'.format(amount / 1e3)
     elif value_format == 'number1':
@@ -635,13 +641,15 @@ class BusinessDashboardWidget(models.Model):
             return flt.field_name
         return None
 
-    def _full_domain(self, filter_values, extra_domain=None, period_field=None):
+    def _full_domain(self, filter_values, extra_domain=None, period_field=None, ignore_period=False):
         self.ensure_one()
         model = self.env[self.model_name]
         domain = self._eval_domain(self.domain)
         if extra_domain:
             domain += self._eval_domain(extra_domain)
         for flt in self.dashboard_id.filter_ids:
+            if ignore_period and flt.filter_type == 'date':
+                continue
             path = self._filter_field(flt, period_field)
             if path and _resolve_field(model, path):
                 domain += flt._domain_for(path, filter_values.get(flt.id), model)
@@ -664,13 +672,14 @@ class BusinessDashboardWidget(models.Model):
         """
         if not measure.source_model_id:
             return (self.env[self.model_name],
-                    self._full_domain(filter_values, measure.extra_domain, measure.period_field))
+                    self._full_domain(filter_values, measure.extra_domain, measure.period_field,
+                                      measure.ignore_period))
         model = self.env[measure.source_model_id.model]
         domain = self._eval_domain(measure.extra_domain)
         period_field = measure.period_field or measure.source_groupby_field
         for flt in self.dashboard_id.filter_ids:
             mapping = self.filter_map_ids.filtered(lambda m, flt=flt: m.filter_id == flt)
-            if mapping and not mapping[0].field_path:
+            if (mapping and not mapping[0].field_path) or (measure.ignore_period and flt.filter_type == 'date'):
                 continue
             path = period_field if flt.filter_type == 'date' else flt.field_name
             if path and _resolve_field(model, path):
@@ -849,7 +858,17 @@ class BusinessDashboardWidget(models.Model):
             keys.sort(key=lambda k: (str(type(groups[k][1])), groups[k][1]))
         if self.limit:
             keys = keys[:self.limit]
-        return keys, groups, data
+        return keys, groups, self._accumulate(keys, data)
+
+    def _accumulate(self, keys, data):
+        """Medidas acumuladas: cada grupo suma los anteriores (en el orden de los grupos)."""
+        for measure in self.measure_ids.filtered(lambda m: m.cumulative and not m.formula):
+            running = 0.0
+            values = data.get(measure.code, {})
+            for key in keys:
+                running += values.get(key, 0.0) or 0.0
+                values[key] = running
+        return data
 
     def _grouped_ranges(self, filter_values):
         """Como _grouped, pero un grupo por rango de antigüedad (siempre en orden)."""
@@ -863,7 +882,8 @@ class BusinessDashboardWidget(models.Model):
             for key, _label, domain in buckets:
                 [(value,)] = self._measure_value(measure, filter_values, extra_domain=domain)
                 data[measure.code][key] = value or 0.0
-        return [key for key, _label, _domain in buckets], groups, data
+        keys = [key for key, _label, _domain in buckets]
+        return keys, groups, self._accumulate(keys, data)
 
     def _chart_payload(self, filter_values):
         palette = ['#2F5BEA', '#E8556F', '#F59E0B', '#10B981', '#8B5CF6', '#06B6D4', '#6B7280', '#EC4899']
@@ -937,7 +957,9 @@ class BusinessDashboardWidget(models.Model):
         if self.show_total and (self.groupby_field_id or self.range_field_id):
             raw_total = {}
             for measure in measures.filtered(lambda m: not m.formula):
-                if measure.aggregate in ('sum', 'count'):
+                if measure.cumulative:          # el total de una acumulada es el último valor
+                    raw_total[measure.code] = data[measure.code].get(keys[-1], 0.0) if keys else 0.0
+                elif measure.aggregate in ('sum', 'count'):
                     raw_total[measure.code] = sum(data[measure.code].get(k, 0.0) for k in keys)
                 else:
                     [(value,)] = self._measure_value(measure, filter_values)
@@ -1079,7 +1101,8 @@ class BusinessDashboardWidget(models.Model):
                 'domain': domain, 'context': {'create': False}, 'target': 'current',
             }
         domain = self._full_domain(values, measure.extra_domain if measure else None,
-                                   measure.period_field if measure else None)
+                                   measure.period_field if measure else None,
+                                   measure.ignore_period if measure else False)
         if grouped and self.range_field_id:
             domain += dict((key, dom) for key, _label, dom in self._range_buckets()).get(group_key, [])
         elif grouped and self.groupby_field_id:
@@ -1166,6 +1189,10 @@ class BusinessDashboardMeasure(models.Model):
     field_id = fields.Many2one(
         'ir.model.fields', string='Campo', ondelete='cascade',
         domain="[('model_id', '=', field_model_id), ('store', '=', True), ('ttype', 'in', %s)]" % (NUMERIC_TYPES,))
+    cumulative = fields.Boolean(string='Acumulada', help='Gráficas y tablas: cada grupo suma los anteriores '
+                                                         '(p. ej. venta acumulada por trimestre).')
+    ignore_period = fields.Boolean(string='Sin periodo', help='No aplica el filtro de periodo del tablero a esta '
+                                                             'medida (p. ej. un histórico de todos los años).')
     series_type = fields.Selection(SERIES_TYPES, string='Dibujar como',
                                    help='Gráficas: vacío = según el tipo de gráfica.')
     right_axis = fields.Boolean(string='Eje derecho', help='Gráficas: usa un segundo eje a la derecha '
