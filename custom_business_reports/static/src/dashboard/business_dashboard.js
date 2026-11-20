@@ -73,22 +73,41 @@ class DashboardChart extends Component {
         const w = this.props.widget;
         const pie = ["pie", "doughnut"].includes(w.chart_type);
         const type = pie ? w.chart_type : w.chart_type === "line" ? "line" : "bar";
-        const fmt = (v) => formatValue(v, w.format, { abbreviate: true, currency: this.props.currency });
+        const currency = this.props.currency;
+        const fmt = (v) => formatValue(v, w.format, { abbreviate: true, currency });
+        const fmtRight = (v) => formatValue(v, w.right_format, { abbreviate: true, currency });
+        // Gráfica combinada: alguna medida en el eje derecho (p. ej. monto junto a un conteo)
+        const hasRight = !pie && w.datasets.some((d) => d.right_axis);
+        // Conteos: marcas del eje sin decimales (evita 0.5, 1.5 o números repetidos)
+        const onlyIntegers = (list) => list.every((d) => d.data.every((v) => Number.isInteger(Number(v || 0))));
+        const leftPrecision = onlyIntegers(w.datasets.filter((d) => !(hasRight && d.right_axis))) ? 0 : undefined;
+        const rightPrecision = onlyIntegers(w.datasets.filter((d) => d.right_axis)) ? 0 : undefined;
         // Colores de textos y líneas según el tema (claro u oscuro) de Odoo
         const textColor = getComputedStyle(this.canvasRef.el).color || "#374151";
         const gridColor = "rgba(128, 128, 128, 0.2)";
         const palette = w.datasets.map((d) => d.color);
-        const datasets = w.datasets.map((d) => ({
-            label: d.label,
-            data: d.data,
-            backgroundColor: pie ? palette.concat(["#93C5FD", "#FCA5A5", "#FCD34D", "#6EE7B7"]) : d.color,
-            borderColor: pie ? "#fff" : d.color,
-            borderWidth: type === "line" ? 2 : 1,
-            fill: false,
-            tension: 0.25,
-            _measure: d.measure_id,
-            _group2: d.group2,
-        }));
+        const datasets = w.datasets.map((d) => {
+            // Cada medida puede dibujarse como barra o como línea (p. ej. la meta mensual)
+            const seriesType = pie ? type : d.series_type || type;
+            return {
+                type: seriesType,
+                label: d.label,
+                data: d.data,
+                backgroundColor: pie ? palette.concat(["#93C5FD", "#FCA5A5", "#FCD34D", "#6EE7B7"]) : d.color,
+                borderColor: pie ? "#fff" : d.color,
+                borderWidth: seriesType === "line" ? 2 : 1,
+                pointRadius: seriesType === "line" ? 3 : undefined,
+                fill: false,
+                tension: type === "line" ? 0.25 : 0,
+                // Las líneas se dibujan encima de las barras
+                order: seriesType === "line" && type !== "line" ? 0 : 1,
+                yAxisID: hasRight && d.right_axis ? "y1" : "y",
+                stack: w.chart_type === "bar_stacked" && seriesType === "line" ? `line-${d.measure_id}` : undefined,
+                _measure: d.measure_id,
+                _group2: d.group2,
+                _format: d.format,
+            };
+        });
         this.chart = new window.Chart(this.canvasRef.el, {
             type,
             data: { labels: w.labels, datasets },
@@ -97,20 +116,37 @@ class DashboardChart extends Component {
                 indexAxis: w.chart_type === "hbar" ? "y" : "x",
                 color: textColor,
                 plugins: {
-                    legend: { display: w.legend, position: "top", labels: { color: textColor } },
-                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmt(ctx.raw)}` } },
+                    legend: {
+                        display: w.legend,
+                        position: "top",
+                        // En el orden de las medidas (Chart.js los ordena por la capa de dibujo)
+                        labels: { color: textColor, sort: (a, b) => a.datasetIndex - b.datasetIndex },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: ${formatValue(ctx.raw, ctx.dataset._format || w.format, { abbreviate: true, currency })}`,
+                        },
+                    },
                 },
                 scales: pie ? {} : {
                     x: {
                         stacked: w.chart_type === "bar_stacked",
                         grid: { color: gridColor },
-                        ticks: w.chart_type === "hbar" ? { callback: fmt, color: textColor } : { color: textColor },
+                        ticks: w.chart_type === "hbar" ? { callback: fmt, color: textColor, precision: leftPrecision } : { color: textColor },
                     },
                     y: {
                         stacked: w.chart_type === "bar_stacked",
                         grid: { color: gridColor },
-                        ticks: w.chart_type === "hbar" ? { color: textColor } : { callback: fmt, color: textColor },
+                        ticks: w.chart_type === "hbar" ? { color: textColor } : { callback: fmt, color: textColor, precision: leftPrecision },
                     },
+                    ...(hasRight ? {
+                        y1: {
+                            position: "right",
+                            beginAtZero: true,
+                            grid: { drawOnChartArea: false },
+                            ticks: { callback: fmtRight, color: textColor, precision: rightPrecision },
+                        },
+                    } : {}),
                 },
                 onClick: (event, elements) => {
                     if (!elements.length) {
@@ -134,14 +170,26 @@ class DashboardChart extends Component {
 // ---------------------------------------------------------------------------
 class DashboardTable extends Component {
     static template = "custom_business_reports.DashboardTable";
-    static props = { widget: Object, currency: Object, onRowClick: Function };
+    static props = { widget: Object, currency: Object, onClick: Function };
 
     setup() {
         this.state = useState({ search: "", sortIndex: null, sortAsc: false });
     }
 
+    /** Clic en el nombre del renglón o en una celda: abre los registros que forman el valor. */
+    open(target, ev) {
+        ev?.stopPropagation();
+        if (target?.click) {
+            this.props.onClick(target.click);
+        }
+    }
+
     get rows() {
         let rows = this.props.widget.rows;
+        if (this.props.widget.transposed) {
+            // Grupos en columnas: los renglones son las medidas, en el orden configurado
+            return rows;
+        }
         const search = this.state.search.trim().toLowerCase();
         if (search) {
             rows = rows.filter((row) => String(row.label).toLowerCase().includes(search));
@@ -167,12 +215,13 @@ class DashboardTable extends Component {
         }
     }
 
-    format(value, column) {
-        return formatValue(value, column.format, { currency: this.props.currency });
+    format(cell, column) {
+        return formatValue(cell.value, cell.format || column.format, { currency: this.props.currency });
     }
 
     cellClass(cell) {
-        return cell.state === "good" ? "o_bd_good" : cell.state === "bad" ? "o_bd_bad" : "";
+        const total = cell.total ? " o_bd_total_cell" : "";
+        return (cell.state === "good" ? "o_bd_good" : cell.state === "bad" ? "o_bd_bad" : "") + total;
     }
 }
 

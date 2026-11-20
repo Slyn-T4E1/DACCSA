@@ -201,7 +201,10 @@
                                     <field name="groupby2_field_id" options="{'no_create': True}"
                                            invisible="widget_type != 'chart'"/>
                                     <field name="groupby2_interval" invisible="not groupby2_field_id"/>
-                                    <field name="sort_mode"/>
+                                    <field name="range_field_id" options="{'no_create': True}"/>
+                                    <field name="range_bounds" invisible="not range_field_id"
+                                           placeholder="30,60,90,180"/>
+                                    <field name="sort_mode" invisible="range_field_id"/>
                                     <field name="limit"/>
                                 </group>
                             </group>
@@ -218,6 +221,9 @@
                                     <field name="field_id"/>
                                     <field name="formula"/>
                                     <field name="value_format"/>
+                                    <field name="source_model_id" optional="hide"/>
+                                    <field name="series_type" optional="hide"/>
+                                    <field name="right_axis" optional="hide"/>
                                     <field name="hidden"/>
                                 </list>
                             </field>
@@ -241,6 +247,7 @@
                                 </group>
                                 <group invisible="widget_type != 'table'">
                                     <field name="row_label"/>
+                                    <field name="table_transpose"/>
                                     <field name="show_total"/>
                                     <field name="total_first" invisible="not show_total"/>
                                 </group>
@@ -283,6 +290,12 @@
                             <field name="model_id" invisible="1"/>
                             <field name="formula" placeholder="Vacío = cálculo de un campo; p. ej. planeado - real"/>
                             <field name="aggregate" invisible="formula"/>
+                            <field name="field_model_id" invisible="1"/>
+                            <field name="source_model_id" invisible="formula" options="{'no_create': True}"
+                                   placeholder="Vacío = modelo del elemento"/>
+                            <field name="source_model_name" invisible="1"/>
+                            <field name="source_groupby_field" invisible="formula or not source_model_id"
+                                   placeholder="p. ej. date"/>
                             <field name="field_id" invisible="formula or aggregate == 'count'" options="{'no_create': True}"/>
                             <field name="period_field" invisible="formula" placeholder="p. ej. date_closed"/>
                         </group>
@@ -291,6 +304,8 @@
                             <field name="color_mode"/>
                             <field name="threshold" invisible="color_mode != 'threshold'"/>
                             <field name="color" placeholder="#2F5BEA"/>
+                            <field name="series_type"/>
+                            <field name="right_axis"/>
                             <field name="hidden"/>
                         </group>
                     </group>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    19.0.8.0.0 · Metas de venta mensuales.
+    Lista editable: un renglón por mes. Se usan en el tablero "Seguimiento
+    comercial" (indicadores Meta y Avance, gráfica Venta vs meta).
+-->
+<odoo>
+    <record id="business_sales_goal_view_list" model="ir.ui.view">
+        <field name="name">business.sales.goal.list</field>
+        <field name="model">business.sales.goal</field>
+        <field name="arch" type="xml">
+            <list string="Metas de venta mensuales" editable="top">
+                <field name="date" string="Fecha (día 1 del mes)"/>
+                <field name="name" string="Mes"/>
+                <field name="amount" sum="Total"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
+                <field name="note"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="business_sales_goal_view_search" model="ir.ui.view">
+        <field name="name">business.sales.goal.search</field>
+        <field name="model">business.sales.goal</field>
+        <field name="arch" type="xml">
+            <search string="Metas de venta">
+                <field name="date"/>
+                <field name="note"/>
+                <filter name="this_year" string="Este año"
+                        domain="[('date', '&gt;=', context_today().strftime('%Y-01-01')),
+                                 ('date', '&lt;=', context_today().strftime('%Y-12-31'))]"/>
+                <filter name="date" string="Mes" date="date"/>
+                <group>
+                    <filter name="group_year" string="Año" context="{'group_by': 'date:year'}"/>
+                    <filter name="group_company" string="Empresa" context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="business_sales_goal_view_graph" model="ir.ui.view">
+        <field name="name">business.sales.goal.graph</field>
+        <field name="model">business.sales.goal</field>
+        <field name="arch" type="xml">
+            <graph string="Metas de venta" type="bar">
+                <field name="date" interval="month"/>
+                <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_business_sales_goal" model="ir.actions.act_window">
+        <field name="name">Metas de venta mensuales</field>
+        <field name="res_model">business.sales.goal</field>
+        <field name="view_mode">list,graph</field>
+        <field name="context">{'search_default_this_year': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Captura la meta de venta de cada mes</p>
+            <p>Un renglón por mes. El tablero "Seguimiento comercial" compara la venta ganada contra estas metas.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_business_sales_goal_crm" name="Metas de venta mensuales" parent="crm.crm_menu_config"
+              action="action_business_sales_goal" sequence="40" groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_business_sales_goal_dashboard" name="Metas de venta" parent="menu_business_dashboard_config_root"
+              action="action_business_sales_goal" sequence="20"/>
+</odoo>

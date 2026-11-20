@@ -122,5 +122,16 @@
         .o_bd_total td { font-weight: 700; background-color: $o-gray-100; cursor: pointer; }
         .o_bd_good { background-color: #DCFCE7; color: #15803D; font-weight: 600; }
         .o_bd_bad { background-color: #FEE2E2; color: #B91C1C; font-weight: 600; }
+        // Grupos en columnas (19.0.8.0.0): primera columna fija, columna de total y renglones de %
+        td.o_bd_sticky {
+            position: sticky; left: 0; z-index: 1;
+            background-color: $o-view-background-color; font-weight: 600;
+            white-space: normal; min-width: 190px; max-width: 230px;
+        }
+        th.o_bd_sticky { left: 0; z-index: 2; }
+        td.o_bd_total_cell { font-weight: 700; background-color: $o-gray-100; }
+        th.o_bd_total_cell { background-color: #1E3A8A; }
+        .o_bd_row_pct td { font-size: 0.8rem; color: $o-gray-600; }
+        .o_bd_row_pct td.o_bd_sticky { font-weight: 400; padding-left: 1.25rem; }
     }
 }

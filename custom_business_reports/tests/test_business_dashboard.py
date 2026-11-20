@@ -163,7 +163,7 @@ class TestBusinessDashboard(TransactionCase):
         self.assertFalse(data['can_edit'])
         self.assertFalse([(w['title'], w['error']) for w in data['widgets'] if w['error']],
                          'Un vendedor calcula el tablero sin errores de permisos')
-        widget = dashboard.widget_ids.filtered(lambda w: w.widget_type == 'table')[:1]
+        widget = dashboard.widget_ids.filtered(lambda w: w.widget_type == 'table' and w.name.startswith('Embudo'))
         self.assertTrue(widget.get_drilldown_action({}, group_key='recompra'))
         # Un tablero que no le corresponde no se puede calcular
         from odoo.exceptions import AccessError

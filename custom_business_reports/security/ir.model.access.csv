@@ -19,3 +19,6 @@ access_business_dashboard_measure_manager,business.dashboard.measure administrad
 access_business_dashboard_widget_filter_user,business.dashboard.widget.filter usuario,model_business_dashboard_widget_filter,base.group_user,1,0,0,0
 access_business_dashboard_widget_filter_manager,business.dashboard.widget.filter administrador,model_business_dashboard_widget_filter,custom_business_reports.group_dashboard_manager,1,1,1,1
 access_business_report_week_print_user,business.report.week.print usuario,model_business_report_week_print,project.group_project_user,1,1,1,1
+access_business_sales_goal_user,business.sales.goal vendedor,model_business_sales_goal,sales_team.group_sale_salesman,1,0,0,0
+access_business_sales_goal_manager,business.sales.goal gerente de ventas,model_business_sales_goal,sales_team.group_sale_manager,1,1,1,1
+access_business_sales_goal_dashboard,business.sales.goal administrador de tableros,model_business_sales_goal,custom_business_reports.group_dashboard_manager,1,1,1,1

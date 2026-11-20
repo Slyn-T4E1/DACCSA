@@ -5,6 +5,10 @@ Se crean al instalar y en la migración 19.0.6.0.0, solo si no existen (se
 reconocen por su identificador externo). Después el usuario los puede
 cambiar desde la app sin que una actualización del módulo los sobrescriba.
 
+Los elementos con 'since' se agregaron después (19.0.8.0.0): la migración de
+esa versión los agrega a los tableros que ya existen, solo si no hay un
+elemento con el mismo título. Su 'sequence' fija el lugar en el tablero.
+
 Cada tablero se describe con diccionarios:
   filtros:   etiqueta, tipo, campo por omisión, modelo de los registros...
   elementos: tipo, modelo, dominio, agrupación, medidas y cómo se aplican
@@ -25,6 +29,8 @@ ATTENDED = "('report_invitation_status', 'in', ['atendido_sin_recompra', 'atendi
            "'atendido_inadecuado', 'atendido_sin_segmento'])"
 WON = "('report_close_status', 'in', ['ganado_sin_recompra', 'ganado_recompra', 'ganado_otro'])"
 LOST = "('report_close_status', 'in', ['perdido_sin_recompra', 'perdido_recompra', 'perdido_otro'])"
+SENT_PENDING = "('report_open_status', '=', 'enviada')", "('won_status', '=', 'pending')"
+GOAL = 'business.sales.goal'
 
 
 def d(*parts):
@@ -78,6 +84,13 @@ COMMERCIAL = {
              domain=d(OPP, "('report_open_status', '=', 'enviada')", "('won_status', '=', 'pending')"),
              map={'periodo': None}, measures=[m('Pipeline', 'pipeline', 'sum', 'expected_revenue')],
              value_format='monetary', subtitle='pendiente de respuesta, hoy', color='#FFF7ED'),
+        # 19.0.8.0.0: meta de venta configurable (CRM › Configuración › Metas de venta mensuales)
+        dict(type='kpi', name='Meta de venta', code='meta', width='6', model=GOAL, since='19.0.8.0.0', sequence=81,
+             map={'periodo': 'date'}, measures=[m('Meta', 'meta', 'sum', 'amount')], value_format='monetary',
+             subtitle='Σ metas mensuales del periodo (de la empresa)', color='#EFF6FF'),
+        dict(type='kpi', name='Avance vs meta', code='avance_meta', width='6', since='19.0.8.0.0', sequence=82,
+             formula='div(venta, meta)', value_format='percent', color_mode='threshold', threshold='1',
+             subtitle='venta ganada / meta; rojo si es menor al 100 %', color='#F0FDF4'),
         # ---------------- Gráficas ----------------
         dict(type='section', name='Invitaciones a cotizar'),
         dict(type='chart', name='Invitaciones a cotizar por mes', width='6', model='crm.lead',
@@ -88,6 +101,26 @@ COMMERCIAL = {
              domain=d(OPP, ARCHIVED, INVITATIONS), groupby='create_date', interval='quarter',
              groupby2='report_invitation_status', chart_type='bar_stacked', map={'periodo': None},
              subtitle='todos los años', measures=[m('Invitaciones', 'invitaciones')]),
+        # 19.0.8.0.0: la tabla "mes a mes" del requerimiento, con los meses en columnas
+        dict(type='table', name='Invitaciones a cotizar, mes a mes', width='12', model='crm.lead',
+             since='19.0.8.0.0', sequence=115, domain=d(OPP, ARCHIVED, INVITATIONS), groupby='create_date',
+             interval='month', table_transpose=True, row_label='Mes de creación',
+             subtitle='Clic en un número para ver las oportunidades.', measures=[
+                 m('Invitaciones a cotizar', 'invitaciones', value_format='integer'),
+                 m('Atendidos nuevos (Sin recompra)', 'sr', value_format='integer',
+                   extra_domain="[('report_invitation_status', '=', 'atendido_sin_recompra')]"),
+                 m('% atendidos nuevos', 'sr_pct', formula='div(sr, invitaciones)', value_format='percent'),
+                 m('Atendidos recompra', 'rc', value_format='integer',
+                   extra_domain="[('report_invitation_status', '=', 'atendido_recompra')]"),
+                 m('% atendidos recompra', 'rc_pct', formula='div(rc, invitaciones)', value_format='percent'),
+                 m('Atendidos otros (inadecuado / sin segmento)', 'otros', value_format='integer',
+                   extra_domain="[('report_invitation_status', 'in', ['atendido_inadecuado', "
+                                "'atendido_sin_segmento'])]"),
+                 m('% atendidos otros', 'otros_pct', formula='div(otros, invitaciones)', value_format='percent'),
+                 m('No atendidos', 'na', value_format='integer',
+                   extra_domain="[('report_invitation_status', '=', 'no_atendido')]"),
+                 m('% no atendidos', 'na_pct', formula='div(na, invitaciones)', value_format='percent'),
+             ]),
         dict(type='section', name='Ganados, perdidos y venta'),
         dict(type='chart', name='Ganados y perdidos por mes de cierre', width='6', model='crm.lead',
              domain=d(OPP, ARCHIVED, "('report_close_status', '!=', False)"), groupby='date_closed',
@@ -97,6 +130,15 @@ COMMERCIAL = {
              domain=d(OPP, "('won_status', '=', 'won')", NOT_EXCLUDED), groupby='date_closed', interval='month',
              groupby2='report_segment', chart_type='bar_stacked', map={'periodo': 'date_closed'},
              measures=[m('Venta', 'venta', 'sum', 'expected_revenue', value_format='monetary')]),
+        # 19.0.8.0.0: venta (barras) contra la meta mensual configurable (línea)
+        dict(type='chart', name='Venta por mes de cierre vs meta mensual', width='12', model='crm.lead',
+             since='19.0.8.0.0', sequence=141, domain=d(OPP, "('won_status', '=', 'won')", NOT_EXCLUDED),
+             groupby='date_closed', interval='month', chart_type='bar', map={'periodo': 'date_closed'},
+             subtitle='La meta se captura en CRM › Configuración › Metas de venta mensuales.', measures=[
+                 m('Venta ganada', 'venta', 'sum', 'expected_revenue', value_format='monetary', color='#2F5BEA'),
+                 m('Meta mensual', 'meta', 'sum', 'amount', source_model=GOAL, source_groupby_field='date',
+                   value_format='monetary', color='#F59E0B', series_type='line'),
+             ]),
         dict(type='chart', name='Razones de pérdida', width='6', model='crm.lead',
              domain=d(OPP, "('active', '=', False)", "('won_status', '=', 'lost')"), groupby='lost_reason_id',
              chart_type='hbar', sort_mode='value_desc', map={'periodo': 'date_closed'}, show_legend=False,
@@ -121,6 +163,24 @@ COMMERCIAL = {
                  m('Pendientes', 'pendientes', formula='atendidos - ganados - perdidos', value_format='integer'),
                  m('% bateo', 'bateo', formula='div(ganados, atendidos)', value_format='percent'),
                  m('Efectividad', 'efectividad', formula='div(ganados, ganados + perdidos)', value_format='percent'),
+             ]),
+        # 19.0.8.0.0: antigüedad del pipeline enviado por rangos de días desde la creación
+        dict(type='section', name='Pipeline abierto por antigüedad', since='19.0.8.0.0', sequence=190),
+        dict(type='chart', name='Antigüedad del pipeline enviado', width='6', model='crm.lead',
+             since='19.0.8.0.0', sequence=200, domain=d(OPP, *SENT_PENDING), range_field='create_date',
+             range_bounds='30,60,90,180', chart_type='bar', map={'periodo': None},
+             subtitle='días desde la creación, hoy; barras = oportunidades, línea = monto', measures=[
+                 m('Oportunidades', 'oportunidades', value_format='integer', color='#2F5BEA'),
+                 m('Monto', 'monto', 'sum', 'expected_revenue', value_format='monetary', color='#F59E0B',
+                   series_type='line', right_axis=True),
+             ]),
+        dict(type='table', name='Pipeline enviado por rango de días', width='6', model='crm.lead',
+             since='19.0.8.0.0', sequence=210, domain=d(OPP, *SENT_PENDING), range_field='create_date',
+             range_bounds='30,60,90,180', row_label='Días desde la creación', map={'periodo': None},
+             measures=[
+                 m('Oportunidades', 'oportunidades', value_format='integer'),
+                 m('Monto', 'monto', 'sum', 'expected_revenue', value_format='monetary'),
+                 m('% del monto', 'pct', formula='div(monto, pipeline)', value_format='percent'),
              ]),
     ],
 }
@@ -293,9 +353,43 @@ def _create_dashboard(env, spec):
         if flt.get('selection_model'):
             vals['selection_model_id'] = Model._get_id(flt['selection_model'])
         filters[flt['key']] = env['business.dashboard.filter'].create(vals)
-    for seq, item in enumerate(spec['widgets']):
-        _create_widget(env, dashboard, filters, item, (seq + 1) * 10)
+    seq = 0
+    for item in spec['widgets']:
+        if 'sequence' not in item:      # los elementos con secuencia fija no recorren a los demás
+            seq += 10
+        _create_widget(env, dashboard, filters, item, item.get('sequence', seq))
     return dashboard
+
+
+def _ensure_widgets(env, specs=None, since=None):
+    """Agrega a los tableros que ya existen los elementos nuevos de fábrica.
+
+    Solo los elementos marcados con 'since' (= since, si se indica) y que no
+    existan ya con el mismo título; así no se duplican ni se tocan los que el
+    usuario cambió o borró a propósito antes de la actualización.
+    """
+    added = []
+    for spec in specs or DEFAULT_DASHBOARDS:
+        dashboard = env.ref('%s.%s' % (MODULE, spec['xmlid']), raise_if_not_found=False)
+        if not dashboard:
+            continue
+        existing = set(dashboard.with_context(lang='en_US').widget_ids.mapped('name')) | \
+            set(dashboard.widget_ids.mapped('name'))
+        filters = {}
+        for flt in spec['filters']:
+            match = dashboard.filter_ids.filtered(lambda f, flt=flt: f.name == flt['name']) or \
+                dashboard.filter_ids.filtered(lambda f, flt=flt: f.field_name == flt.get('field_name')
+                                              and f.filter_type == flt['filter_type'])
+            if match:
+                filters[flt['key']] = match[:1]
+        for item in spec['widgets']:
+            if not item.get('since') or (since and item['since'] != since) or item['name'] in existing:
+                continue
+            item = dict(item, map={key: path for key, path in item.get('map', {}).items() if key in filters})
+            _create_widget(env, dashboard, filters, item, item.get('sequence', 1000))
+            added.append('%s: %s' % (dashboard.name, item['name']))
+    _logger.info('Elementos de tablero agregados: %s', added)
+    return added
 
 
 def _create_widget(env, dashboard, filters, item, sequence):
@@ -314,6 +408,8 @@ def _create_widget(env, dashboard, filters, item, sequence):
         'limit': item.get('limit', 0), 'row_label': item.get('row_label'),
         'total_first': item.get('total_first', False), 'list_fields': item.get('list_fields'),
         'list_order': item.get('list_order'), 'height': item.get('height', 320),
+        'table_transpose': item.get('table_transpose', False),
+        'range_bounds': item.get('range_bounds', '30,60,90,180'),
     }
     if model:
         vals['model_id'] = env['ir.model']._get_id(model)
@@ -321,12 +417,17 @@ def _create_widget(env, dashboard, filters, item, sequence):
             vals['groupby_field_id'] = Fields._get(model, item['groupby']).id
         if item.get('groupby2'):
             vals['groupby2_field_id'] = Fields._get(model, item['groupby2']).id
+        if item.get('range_field'):
+            vals['range_field_id'] = Fields._get(model, item['range_field']).id
     if item.get('drilldown_view'):
         view = env.ref(item['drilldown_view'], raise_if_not_found=False)
         vals['drilldown_view_id'] = view.id if view else False
     vals['measure_ids'] = [(0, 0, {
         'sequence': i * 10, 'name': ms['name'], 'code': ms['code'], 'aggregate': ms['aggregate'],
-        'field_id': Fields._get(model, ms['field']).id if ms.get('field') else False,
+        'field_id': Fields._get(ms.get('source_model') or model, ms['field']).id if ms.get('field') else False,
+        'source_model_id': env['ir.model']._get_id(ms['source_model']) if ms.get('source_model') else False,
+        'source_groupby_field': ms.get('source_groupby_field'),
+        'series_type': ms.get('series_type') or False, 'right_axis': ms.get('right_axis', False),
         'extra_domain': ms.get('extra_domain'), 'period_field': ms.get('period_field'),
         'formula': ms.get('formula'), 'value_format': ms.get('value_format', item.get('value_format', 'number')),
         'color_mode': ms.get('color_mode', 'none'), 'threshold': ms.get('threshold'),

@@ -33,8 +33,12 @@ medidas y fórmulas.
 
 Etapa 7, PDF "Reporte Semanal de Dirección": hojas 16:9 con el resumen y una
 sección por proyecto; se guarda en la semana cerrada y se envía por correo.
+
+19.0.8.0.0: tablas con meses en columnas ("Invitaciones a cotizar, mes a
+mes"), metas de venta mensuales configurables (indicadores y gráfica de
+venta vs meta) y antigüedad del pipeline por rangos de días.
 """,
-    'version': '19.0.7.0.1',
+    'version': '19.0.8.0.0',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',
@@ -54,6 +58,7 @@ sección por proyecto; se guarda en la semana cerrada y se envía por correo.
         'views/business_report_week_views.xml',
         'views/business_dashboard_views.xml',
         'views/business_report_week_print_views.xml',
+        'views/business_sales_goal_views.xml',
         'views/menus.xml',
         'report/week_direction_report.xml',
         'report/week_direction_mail.xml',

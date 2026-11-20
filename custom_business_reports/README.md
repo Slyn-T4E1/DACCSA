@@ -16,6 +16,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | 5 | 19.0.5.0.0 | Tablero de Dirección: semana vigente, tablero en Tableros, pestaña Resumen por semana, gráficas de costos y tendencia, alerta de margen bajo | Ricardo y César |
 | 6 | 19.0.6.0.0 | App "Tableros DACSA": tableros en JavaScript configurables (filtros, dominios, medidas y fórmulas); reemplaza los tableros de la app Tableros | Dirección, Mauricio |
 | 7 | 19.0.7.0.0 | PDF Reporte Semanal de Dirección (resumen + sección por proyecto), guardado en la semana y envío por correo | Dirección |
+| 7+ | 19.0.8.0.0 | Tabla "Invitaciones a cotizar, mes a mes" (meses en columnas), metas de venta mensuales configurables (Meta, Avance, Venta vs meta) y antigüedad del pipeline por rangos | Mauricio y Dirección |
 
 ## Etapa 1 · Qué hace
 
@@ -246,3 +247,29 @@ Ajuste de permisos de la Etapa 6 incluido: los usuarios que no son administrador
 2. Cerrar la semana › Reporte PDF: el PDF se descarga y queda adjunto en la semana.
 3. Enviar a Dirección: se abre el correo con el PDF adjunto.
 4. Revisar que cada hoja ocupe la página completa y que las cifras coincidan con la pestaña Resumen y el tablero.
+
+## 19.0.8.0.0 · Qué hace
+
+Tablero **Seguimiento comercial** (se agrega solo a los tableros que ya existen, sin tocar lo que el usuario cambió):
+
+1. **Invitaciones a cotizar, mes a mes**: tabla con los meses en columnas (por fecha de creación) y el Total al final. Renglones: invitaciones, atendidos nuevos (Sin recompra), atendidos recompra, atendidos otros (inadecuado / sin segmento) y no atendidos, cada uno con su % sobre las invitaciones. Clic en un número = oportunidades de ese mes y estatus.
+2. **Metas de venta mensuales** (CRM › Configuración › Metas de venta mensuales, o Tableros DACSA › Configuración › Metas de venta): un renglón por mes y empresa; la fecha se guarda como día 1.
+   - Indicador **Meta de venta** = Σ metas de los meses del periodo filtrado.
+   - Indicador **Avance vs meta** = venta ganada / meta (rojo si es menor al 100 %).
+   - Gráfica **Venta por mes de cierre vs meta mensual**: barras de venta ganada y la meta como línea.
+   - La meta es de la empresa: no cambia con el filtro de vendedor ni de segmento.
+3. **Pipeline abierto por antigüedad**: gráfica (barras = oportunidades, línea en el eje derecho = monto) y tabla por rangos de días desde la creación: 0–30, 31–60, 61–90, 91–180 y más de 180. Solo enviadas pendientes de respuesta, a hoy.
+
+Nuevo en la configuración de elementos (para armar otros sin programar):
+
+- Tabla › Formato › **Grupos en columnas**.
+- Datos › **Rangos de antigüedad desde** (campo de fecha) y **Rangos (días)**, p. ej. `30,60,90,180`.
+- Medida › **Datos de otro modelo** + **Agrupar por (otro modelo)**: p. ej. la meta (Meta de venta mensual, campo `date`) junto a la venta por mes.
+- Medida › **Dibujar como** (barras o línea) y **Eje derecho**.
+
+## 19.0.8.0.0 · Cómo probar
+
+1. CRM › Configuración › Metas de venta mensuales: capturar la meta de cada mes del año.
+2. Tableros DACSA › Seguimiento comercial: revisar Meta de venta y Avance vs meta con el periodo "Este año" y "Este mes".
+3. Comparar la tabla mes a mes contra la gráfica "Invitaciones a cotizar por mes" (mismos números) y dar clic en una celda.
+4. Revisar la gráfica de venta vs meta y la de antigüedad; clic en una barra abre las oportunidades del rango.

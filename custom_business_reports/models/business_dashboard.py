@@ -21,10 +21,21 @@ Cálculo (get_dashboard_data):
   3. Las fórmulas se evalúan con safe_eval. En indicadores pueden usar los
      códigos de otros indicadores; en tablas, los códigos de las columnas del
      mismo renglón y de los indicadores. La división entre cero da 0.
+
+19.0.8.0.0:
+  * Tablas con los grupos en columnas (table_transpose): p. ej. meses en
+    columnas y una medida por renglón ("Invitaciones a cotizar, mes a mes").
+  * Rangos de antigüedad (range_field_id + range_bounds): agrupa por días
+    transcurridos desde una fecha (0–30, 31–60, ... más de 180 días).
+  * Medidas de otro modelo (source_model_id): p. ej. la meta mensual
+    (business.sales.goal) en una gráfica de venta por mes. Se alinean por el
+    campo de fecha source_groupby_field con el mismo intervalo.
+  * Series como línea o barra y eje derecho por medida (gráficas combinadas).
 """
 import calendar
 import logging
 from datetime import date, datetime, time, timedelta
+from types import SimpleNamespace
 
 from dateutil.relativedelta import relativedelta
 
@@ -72,6 +83,7 @@ AGGREGATES = [('sum', 'Suma'), ('avg', 'Promedio'), ('min', 'Mínimo'), ('max', 
 VALUE_FORMATS = [('number', 'Número'), ('integer', 'Entero'), ('monetary', 'Moneda'), ('percent', 'Porcentaje')]
 COLOR_MODES = [('none', 'Sin color'), ('sign', 'Verde si ≥ 0, rojo si < 0'),
                ('threshold', 'Rojo si es menor al umbral')]
+SERIES_TYPES = [('bar', 'Barras'), ('line', 'Línea')]
 SORT_MODES = [('group', 'Por agrupación'), ('value_desc', 'Mayor a menor (1a medida)'),
               ('value_asc', 'Menor a mayor (1a medida)')]
 WIDTHS = [('3', '1/4'), ('4', '1/3'), ('6', '1/2'), ('8', '2/3'), ('9', '3/4'), ('12', 'Completo')]
@@ -195,7 +207,7 @@ class BusinessDashboard(models.Model):
                     kpi_values[widget.code] = 0.0
             pending -= ready
         # 2) Datos de cada elemento visible
-        for widget in self.widget_ids.filtered(lambda w: not w.hidden):
+        for widget in self.widget_ids.filtered(lambda w: not w.hidden).sorted(lambda w: (w.sequence, w.id)):
             data = {'id': widget.id, 'type': widget.widget_type, 'title': widget.name,
                     'subtitle': widget.subtitle or '', 'width': int(widget.width or 12),
                     'height': widget.height or 320, 'error': False}
@@ -438,6 +450,13 @@ class BusinessDashboardWidget(models.Model):
         domain="[('model_id', '=', model_id), ('store', '=', True), ('ttype', 'in', %s)]" % (GROUPABLE_TYPES,),
         help='Gráficas: una serie por cada valor de este campo (usa la primera medida).')
     groupby2_interval = fields.Selection(INTERVALS, string='Intervalo (series)', default='month')
+    range_field_id = fields.Many2one(
+        'ir.model.fields', string='Rangos de antigüedad desde', ondelete='set null',
+        domain="[('model_id', '=', model_id), ('store', '=', True), ('ttype', 'in', ('date', 'datetime'))]",
+        help='Agrupa por días transcurridos desde esta fecha hasta hoy (en lugar de "Agrupar por").')
+    range_bounds = fields.Char(string='Rangos (días)', default='30,60,90,180',
+                               help='Límites de los rangos separados por coma. 30,60,90,180 = 0–30, 31–60, '
+                                    '61–90, 91–180 y más de 180 días.')
     sort_mode = fields.Selection(SORT_MODES, string='Orden', default='group')
     limit = fields.Integer(string='Máximo de renglones', default=0, help='0 = sin límite.')
     measure_ids = fields.One2many('business.dashboard.measure', 'widget_id', string='Medidas', copy=True)
@@ -461,6 +480,10 @@ class BusinessDashboardWidget(models.Model):
     show_total = fields.Boolean(string='Renglón de total', default=True)
     total_first = fields.Boolean(string='Total arriba')
     row_label = fields.Char(string='Encabezado de renglones', translate=True)
+    table_transpose = fields.Boolean(
+        string='Grupos en columnas',
+        help='Cada grupo (p. ej. cada mes) es una columna y cada medida un renglón; el total es la última '
+             'columna.')
 
     # ---------------- Listado ----------------
     list_fields = fields.Char(string='Columnas', help='Campos separados por coma, p. ej. '
@@ -479,9 +502,12 @@ class BusinessDashboardWidget(models.Model):
     # ------------------------------------------------------------------
     # Validaciones y vista previa
     # ------------------------------------------------------------------
-    @api.constrains('domain', 'model_id', 'formula', 'code', 'list_fields', 'widget_type')
+    @api.constrains('domain', 'model_id', 'formula', 'code', 'list_fields', 'widget_type', 'range_bounds',
+                    'range_field_id')
     def _check_config(self):
         for widget in self:
+            if widget.range_field_id:
+                widget._range_bounds()
             if widget.code and not widget.code.replace('_', '').isalnum():
                 raise ValidationError(_('El código "%s" solo puede tener letras, números y guion bajo.', widget.code))
             if widget.widget_type in ('chart', 'table', 'list') or (
@@ -563,12 +589,71 @@ class BusinessDashboardWidget(models.Model):
     def _is_formula_kpi(self):
         return bool(self.formula)
 
-    def _measure_value(self, measure, filter_values, groupby=()):
+    def _measure_domain(self, measure, filter_values):
+        """(modelo, dominio) de una medida.
+
+        Medida del modelo del elemento: dominio del elemento + filtros.
+        Medida de otro modelo (source_model_id): su dominio adicional + los
+        filtros que ese modelo tenga; el periodo se aplica a su campo de
+        fecha. Un filtro marcado "no aplicar" en el elemento tampoco se aplica
+        a sus medidas de otro modelo.
+        """
+        if not measure.source_model_id:
+            return (self.env[self.model_name],
+                    self._full_domain(filter_values, measure.extra_domain, measure.period_field))
+        model = self.env[measure.source_model_id.model]
+        domain = list(safe_eval(measure.extra_domain or '[]'))
+        period_field = measure.period_field or measure.source_groupby_field
+        for flt in self.dashboard_id.filter_ids:
+            mapping = self.filter_map_ids.filtered(lambda m, flt=flt: m.filter_id == flt)
+            if mapping and not mapping[0].field_path:
+                continue
+            path = period_field if flt.filter_type == 'date' else flt.field_name
+            if path and _resolve_field(model, path):
+                domain += flt._domain_for(path, filter_values.get(flt.id), model)
+        return model, domain
+
+    def _measure_value(self, measure, filter_values, groupby=(), extra_domain=None):
         """Valor de una medida (o por grupo) con _read_group."""
-        model = self.env[self.model_name].sudo(False)
-        domain = self._full_domain(filter_values, measure.extra_domain, measure.period_field)
+        model, domain = self._measure_domain(measure, filter_values)
+        if extra_domain:
+            domain = domain + list(extra_domain)
         aggregate = measure._aggregate_spec()
-        return model._read_group(domain, list(groupby), [aggregate])
+        return model.sudo(False)._read_group(domain, list(groupby), [aggregate])
+
+    # ---------------- Rangos de antigüedad ----------------
+    def _range_bounds(self):
+        try:
+            bounds = sorted({int(b) for b in (self.range_bounds or '').split(',') if b.strip()})
+        except ValueError as error:
+            raise ValidationError(_('Los rangos de "%s" deben ser números de días separados por coma, '
+                                    'p. ej. 30,60,90,180.', self.name)) from error
+        if not bounds or bounds[0] <= 0:
+            raise ValidationError(_('Los rangos de "%s" deben ser números de días mayores a cero.', self.name))
+        return bounds
+
+    def _range_buckets(self):
+        """[(llave, etiqueta, dominio)] de cada rango, del más reciente al más antiguo."""
+        field = self.range_field_id
+        today = fields.Date.context_today(self)
+
+        def limit(days):
+            day = today - timedelta(days=days)
+            return datetime.combine(day, time.min) if field.ttype == 'datetime' else day
+
+        buckets, previous = [], None
+        for i, high in enumerate(self._range_bounds()):
+            domain = [(field.name, '>=', limit(high))]
+            if previous is None:
+                label = _('0–%s días', high)
+            else:
+                domain.append((field.name, '<', limit(previous)))
+                label = _('%(low)s–%(high)s días', low=previous + 1, high=high)
+            buckets.append(('r%s' % i, label, domain))
+            previous = high
+        buckets.append(('r%s' % len(buckets), _('Más de %s días', previous),
+                        [(field.name, '<', limit(previous))]))
+        return buckets
 
     def _compute_kpi_value(self, filter_values, kpi_values):
         self.ensure_one()
@@ -612,12 +697,12 @@ class BusinessDashboardWidget(models.Model):
             return '%s:%s' % (field.name, interval or 'month')
         return field.name
 
-    def _group_key_label(self, field, interval, value):
+    def _group_key_label(self, field, interval, value, model_name=None):
         """(llave, etiqueta, orden) de un valor agrupado."""
         if field.ttype == 'many2one':
             return (value.id or False, value.display_name if value else _('Sin definir'), value.display_name or '')
         if field.ttype == 'selection':
-            selection = self.env[self.model_name]._fields[field.name]._description_selection(self.env)
+            selection = self.env[model_name or self.model_name]._fields[field.name]._description_selection(self.env)
             labels = dict(selection)
             keys = [k for k, _l in selection]
             return (value, labels.get(value, _('Sin definir')), keys.index(value) if value in keys else 999)
@@ -640,19 +725,39 @@ class BusinessDashboardWidget(models.Model):
             return (value, _('Sí') if value else _('No'), not value)
         return (value, str(value) if value not in (False, None) else _('Sin definir'), value or '')
 
+    @staticmethod
+    def _source_field(measure):
+        """Campo de agrupación de una medida de otro modelo (nombre y tipo)."""
+        model_field = measure.env[measure.source_model_id.model]._fields.get(measure.source_groupby_field or '')
+        if not model_field:
+            return None
+        return SimpleNamespace(name=model_field.name, ttype=model_field.type)
+
     def _grouped(self, filter_values):
         """Valores agrupados de cada medida de datos: {código: {llave: valor}} y grupos ordenados."""
+        if self.range_field_id:
+            return self._grouped_ranges(filter_values)
         field, interval = self.groupby_field_id, self.groupby_interval
         spec = self._groupby_spec(field, interval)
         groups, data = {}, {}
         for measure in self.measure_ids.filtered(lambda m: not m.formula):
             data[measure.code] = {}
-            if spec:
-                rows = self._measure_value(measure, filter_values, [spec])
+            measure_field, model_name = field, None
+            if measure.source_model_id:
+                # Medida de otro modelo: se agrupa por su propio campo (p. ej. el mes de la meta)
+                measure_field, model_name = self._source_field(measure), measure.source_model_id.model
+                measure_spec = self._groupby_spec(measure_field, interval) if spec and measure_field else None
+                if spec and not measure_spec:
+                    continue
+            else:
+                measure_spec = spec
+            if measure_spec:
+                rows = self._measure_value(measure, filter_values, [measure_spec])
             else:   # sin agrupación: un solo renglón
                 rows = [(None, self._measure_value(measure, filter_values)[0][0])]
             for value, amount in rows:
-                key, label, order = self._group_key_label(field, interval, value) if spec else ('total', '', 0)
+                key, label, order = self._group_key_label(measure_field, interval, value, model_name) \
+                    if measure_spec else ('total', '', 0)
                 groups.setdefault(key, (label, order))
                 data[measure.code][key] = amount or 0.0
         keys = list(groups)
@@ -665,9 +770,23 @@ class BusinessDashboardWidget(models.Model):
             keys = keys[:self.limit]
         return keys, groups, data
 
+    def _grouped_ranges(self, filter_values):
+        """Como _grouped, pero un grupo por rango de antigüedad (siempre en orden)."""
+        buckets = self._range_buckets()
+        groups = {key: (label, i) for i, (key, label, _domain) in enumerate(buckets)}
+        data = {}
+        for measure in self.measure_ids.filtered(lambda m: not m.formula):
+            data[measure.code] = {}
+            if measure.source_model_id:     # los rangos son del modelo del elemento
+                continue
+            for key, _label, domain in buckets:
+                [(value,)] = self._measure_value(measure, filter_values, extra_domain=domain)
+                data[measure.code][key] = value or 0.0
+        return [key for key, _label, _domain in buckets], groups, data
+
     def _chart_payload(self, filter_values):
         palette = ['#2F5BEA', '#E8556F', '#F59E0B', '#10B981', '#8B5CF6', '#06B6D4', '#6B7280', '#EC4899']
-        if self.groupby2_field_id and self.measure_ids:
+        if self.groupby2_field_id and self.measure_ids and not self.range_field_id:
             # Series por un segundo campo, con la primera medida
             measure = self.measure_ids[0]
             spec1 = self._groupby_spec(self.groupby_field_id, self.groupby_interval)
@@ -696,10 +815,15 @@ class BusinessDashboardWidget(models.Model):
             else:
                 series = [data[measure.code].get(k, 0.0) for k in keys]
             datasets.append({'label': measure.name, 'data': series, 'measure_id': measure.id,
-                             'color': measure.color or palette[i % len(palette)]})
+                             'color': measure.color or palette[i % len(palette)],
+                             # Gráficas combinadas: barra o línea y eje derecho por medida
+                             'series_type': measure.series_type or False, 'right_axis': measure.right_axis,
+                             'format': measure.value_format or 'number'})
+        right = next((d for d in datasets if d['right_axis']), None)
         return {'chart_type': self.chart_type, 'labels': [groups[k][0] for k in keys], 'keys': keys,
                 'datasets': datasets, 'legend': self.show_legend,
-                'format': (self.measure_ids[:1].value_format or 'number')}
+                'format': next((d['format'] for d in datasets if not d['right_axis']), 'number'),
+                'right_format': right['format'] if right else False}
 
     def _table_payload(self, filter_values, kpi_values):
         keys, groups, data = self._grouped(filter_values)
@@ -721,13 +845,15 @@ class BusinessDashboardWidget(models.Model):
                 value = row_values[measure.code]
                 threshold = _safe_formula(measure.threshold, dict(kpi_values, **row_values)) \
                     if measure.threshold else None
-                cells.append({'value': value, 'state': _color_state(measure.color_mode, value, threshold)})
-            return {'key': key, 'label': label, 'cells': cells}
+                cells.append({'value': value, 'state': _color_state(measure.color_mode, value, threshold),
+                              'format': measure.value_format,
+                              'click': {'group_key': key, 'measure_id': measure.id}})
+            return {'key': key, 'label': label, 'cells': cells, 'click': {'group_key': key}}
 
         for key in keys:
             rows.append(build_row(key, groups[key][0], {c: data[c].get(key, 0.0) for c in data}))
         total = None
-        if self.show_total and self.groupby_field_id:
+        if self.show_total and (self.groupby_field_id or self.range_field_id):
             raw_total = {}
             for measure in measures.filtered(lambda m: not m.formula):
                 if measure.aggregate in ('sum', 'count'):
@@ -736,12 +862,35 @@ class BusinessDashboardWidget(models.Model):
                     [(value,)] = self._measure_value(measure, filter_values)
                     raw_total[measure.code] = value or 0.0
             total = build_row('__total__', _('Total'), raw_total)
+        if self.table_transpose:
+            return self._transposed_payload(rows, total)
         return {
             'row_label': self.row_label or (self.groupby_field_id.field_description or ''),
             'columns': [{'id': m.id, 'name': m.name, 'format': m.value_format}
                         for m in measures.filtered(lambda m: not m.hidden)],
             'rows': rows, 'total': total, 'total_first': self.total_first,
             'drilldown': True,
+        }
+
+    def _transposed_payload(self, rows, total):
+        """Tabla con los grupos en columnas: un renglón por medida visible."""
+        visible = self.measure_ids.filtered(lambda m: not m.hidden)
+        source_rows = list(rows)
+        if total:
+            source_rows = [total] + source_rows if self.total_first else source_rows + [total]
+        columns = [{'id': row['key'], 'name': row['label'], 'total': row['key'] == '__total__'}
+                   for row in source_rows]
+        out_rows = []
+        for index, measure in enumerate(visible):
+            out_rows.append({
+                'key': measure.code, 'label': measure.name, 'format': measure.value_format,
+                'click': {'measure_id': measure.id},
+                'cells': [dict(row['cells'][index], total=row['key'] == '__total__') for row in source_rows],
+            })
+        return {
+            'row_label': self.row_label or '',
+            'columns': columns, 'rows': out_rows, 'total': None, 'total_first': False,
+            'transposed': True, 'drilldown': True,
         }
 
     def _list_field_names(self):
@@ -784,10 +933,24 @@ class BusinessDashboardWidget(models.Model):
         measure = self.env['business.dashboard.measure'].browse(measure_id) if measure_id else \
             self.measure_ids.filtered(lambda m: not m.formula)[:1]
         if measure and measure.formula:
-            measure = self.measure_ids.filtered(lambda m: not m.formula)[:1]
+            measure = self.measure_ids.filtered(lambda m: not m.formula and not m.source_model_id)[:1]
+        grouped = group_key not in (None, '__total__', 'total')
+        if measure and measure.source_model_id:
+            # Medida de otro modelo (p. ej. la meta mensual): abre sus registros
+            model, domain = self._measure_domain(measure, values)
+            source_field = self._source_field(measure)
+            if grouped and source_field and not self.range_field_id:
+                domain += self._group_domain(source_field, self.groupby_interval, group_key)
+            return {
+                'type': 'ir.actions.act_window', 'name': '%s · %s' % (self.name, measure.name),
+                'res_model': model._name, 'views': [(False, 'list'), (False, 'form')],
+                'domain': domain, 'context': {'create': False}, 'target': 'current',
+            }
         domain = self._full_domain(values, measure.extra_domain if measure else None,
                                    measure.period_field if measure else None)
-        if group_key not in (None, '__total__', 'total') and self.groupby_field_id:
+        if grouped and self.range_field_id:
+            domain += dict((key, dom) for key, _label, dom in self._range_buckets()).get(group_key, [])
+        elif grouped and self.groupby_field_id:
             domain += self._group_domain(self.groupby_field_id, self.groupby_interval, group_key)
         if group2_key is not None and self.groupby2_field_id:
             domain += self._group_domain(self.groupby2_field_id, self.groupby2_interval, group2_key)
@@ -857,9 +1020,24 @@ class BusinessDashboardMeasure(models.Model):
     code = fields.Char(string='Código', required=True,
                        help='Nombre corto para usar esta columna en fórmulas.')
     aggregate = fields.Selection(AGGREGATES, string='Cálculo', default='sum', required=True)
+    # Medida de otro modelo (p. ej. Metas de venta mensuales en una gráfica de venta por mes)
+    source_model_id = fields.Many2one(
+        'ir.model', string='Datos de otro modelo', ondelete='cascade',
+        help='Vacío = modelo del elemento. Si se elige otro modelo, la medida usa su dominio adicional y se '
+             'alinea con los grupos del elemento por "Agrupar por (otro modelo)".')
+    source_model_name = fields.Char(related='source_model_id.model', string='Otro modelo (técnico)')
+    source_groupby_field = fields.Char(
+        string='Agrupar por (otro modelo)',
+        help='Campo del otro modelo equivalente al "Agrupar por" del elemento, p. ej. date para la meta '
+             'mensual. También se usa para el filtro de periodo.')
+    field_model_id = fields.Many2one('ir.model', compute='_compute_field_model_id')
     field_id = fields.Many2one(
         'ir.model.fields', string='Campo', ondelete='cascade',
-        domain="[('model_id', '=', model_id), ('store', '=', True), ('ttype', 'in', %s)]" % (NUMERIC_TYPES,))
+        domain="[('model_id', '=', field_model_id), ('store', '=', True), ('ttype', 'in', %s)]" % (NUMERIC_TYPES,))
+    series_type = fields.Selection(SERIES_TYPES, string='Dibujar como',
+                                   help='Gráficas: vacío = según el tipo de gráfica.')
+    right_axis = fields.Boolean(string='Eje derecho', help='Gráficas: usa un segundo eje a la derecha '
+                                                           '(p. ej. monto junto a un conteo).')
     extra_domain = fields.Char(string='Dominio adicional', help='Solo para esta medida, p. ej. '
                                                                 "[('won_status', '=', 'won')].")
     period_field = fields.Char(string='Campo de fecha para el periodo',
@@ -874,14 +1052,33 @@ class BusinessDashboardMeasure(models.Model):
 
     _code_uniq = models.Constraint('UNIQUE(widget_id, code)', 'El código ya se usa en este elemento.')
 
-    @api.constrains('aggregate', 'field_id', 'formula', 'code', 'extra_domain')
+    @api.depends('source_model_id', 'widget_id.model_id')
+    def _compute_field_model_id(self):
+        for measure in self:
+            measure.field_model_id = measure.source_model_id or measure.widget_id.model_id
+
+    @api.constrains('aggregate', 'field_id', 'formula', 'code', 'extra_domain', 'source_model_id',
+                    'source_groupby_field')
     def _check_measure(self):
         for measure in self:
             if not measure.code.replace('_', '').isalnum():
                 raise ValidationError(_('El código "%s" solo puede tener letras, números y guion bajo.', measure.code))
             if not measure.formula and measure.aggregate != 'count' and not measure.field_id:
                 raise ValidationError(_('La medida "%s" necesita un campo, un conteo o una fórmula.', measure.name))
-            if measure.extra_domain and measure.widget_id.model_id:
+            if measure.source_model_id:
+                model = self.env[measure.source_model_id.model]
+                if measure.field_id and measure.field_id.model != model._name:
+                    raise ValidationError(_('El campo de "%s" debe ser del otro modelo.', measure.name))
+                if measure.source_groupby_field and measure.source_groupby_field not in model._fields:
+                    raise ValidationError(_('El campo "%(field)s" no existe en %(model)s.',
+                                            field=measure.source_groupby_field, model=measure.source_model_id.name))
+                if measure.extra_domain:
+                    try:
+                        model.search_count(safe_eval(measure.extra_domain), limit=1)
+                    except Exception as error:
+                        raise ValidationError(_('Dominio inválido en "%(name)s": %(error)s',
+                                                name=measure.name, error=error)) from error
+            elif measure.extra_domain and measure.widget_id.model_id:
                 measure.widget_id._check_domain(measure.extra_domain)
 
     def _aggregate_spec(self):

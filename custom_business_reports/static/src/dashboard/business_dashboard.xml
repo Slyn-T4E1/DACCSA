@@ -12,7 +12,7 @@
     <!-- ================= Tabla ================= -->
     <t t-name="custom_business_reports.DashboardTable">
         <t t-set="w" t-value="props.widget"/>
-        <div class="o_bd_table_tools" t-if="w.rows.length > 6">
+        <div class="o_bd_table_tools" t-if="w.rows.length > 6 and !w.transposed">
             <input type="search" class="form-control form-control-sm" placeholder="Buscar en la tabla…"
                    t-model="state.search"/>
         </div>
@@ -20,12 +20,13 @@
             <table class="table table-sm table-hover o_bd_table mb-0">
                 <thead>
                     <tr>
-                        <th class="o_bd_sortable" t-on-click="() => this.sortBy(-1)">
+                        <th t-att-class="w.transposed ? 'o_bd_sticky' : 'o_bd_sortable'" t-on-click="() => !w.transposed and this.sortBy(-1)">
                             <t t-esc="w.row_label"/>
                             <i t-if="state.sortIndex === -1" t-attf-class="fa fa-sort-{{ state.sortAsc ? 'asc' : 'desc' }} ms-1"/>
                         </th>
                         <t t-foreach="w.columns" t-as="column" t-key="column.id">
-                            <th class="text-end o_bd_sortable" t-on-click="() => this.sortBy(column_index)">
+                            <th t-attf-class="text-end {{ w.transposed ? (column.total ? 'o_bd_total_cell' : '') : 'o_bd_sortable' }}"
+                                t-on-click="() => !w.transposed and this.sortBy(column_index)">
                                 <t t-esc="column.name"/>
                                 <i t-if="state.sortIndex === column_index" t-attf-class="fa fa-sort-{{ state.sortAsc ? 'asc' : 'desc' }} ms-1"/>
                             </th>
@@ -35,10 +36,11 @@
                 <tbody>
                     <t t-if="w.total and w.total_first" t-call="custom_business_reports.DashboardTableTotal"/>
                     <t t-foreach="rows" t-as="row" t-key="row.key">
-                        <tr class="o_bd_row" t-on-click="() => props.onRowClick(row)" title="Ver los registros">
-                            <td><t t-esc="row.label"/></td>
+                        <tr t-attf-class="o_bd_row {{ row.format === 'percent' and w.transposed ? 'o_bd_row_pct' : '' }}"
+                            t-on-click="(ev) => this.open(row, ev)" title="Ver los registros">
+                            <td t-att-class="w.transposed ? 'o_bd_sticky' : ''"><t t-esc="row.label"/></td>
                             <t t-foreach="row.cells" t-as="cell" t-key="cell_index">
-                                <td t-attf-class="text-end {{ cellClass(cell) }}"><t t-esc="format(cell.value, w.columns[cell_index])"/></td>
+                                <td t-attf-class="text-end {{ cellClass(cell) }}" t-on-click="(ev) => this.open(cell, ev)"><t t-esc="format(cell, w.columns[cell_index])"/></td>
                             </t>
                         </tr>
                     </t>
@@ -50,10 +52,10 @@
     </t>
 
     <t t-name="custom_business_reports.DashboardTableTotal">
-        <tr class="o_bd_total" t-on-click="() => props.onRowClick(w.total)">
+        <tr class="o_bd_total" t-on-click="(ev) => this.open(w.total, ev)">
             <td><t t-esc="w.total.label"/></td>
             <t t-foreach="w.total.cells" t-as="cell" t-key="cell_index">
-                <td t-attf-class="text-end {{ cellClass(cell) }}"><t t-esc="format(cell.value, w.columns[cell_index])"/></td>
+                <td t-attf-class="text-end {{ cellClass(cell) }}" t-on-click="(ev) => this.open(cell, ev)"><t t-esc="format(cell, w.columns[cell_index])"/></td>
             </t>
         </tr>
     </t>
@@ -179,7 +181,7 @@
                                 <t t-elif="widget.type === 'table'">
                                     <div class="o_bd_kpi_note mb-1" t-if="widget.subtitle" t-esc="widget.subtitle"/>
                                     <DashboardTable widget="widget" currency="currency"
-                                                    onRowClick="(row) => this.drilldown(widget, { group_key: row.key })"/>
+                                                    onClick="(click) => this.drilldown(widget, click)"/>
                                 </t>
                                 <t t-elif="widget.type === 'list'">
                                     <div class="o_bd_kpi_note mb-1" t-if="widget.subtitle" t-esc="widget.subtitle"/>
