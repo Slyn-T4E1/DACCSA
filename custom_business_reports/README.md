@@ -328,3 +328,8 @@ Nuevo en las medidas: **Acumulada** (suma corrida por grupo) y **Sin periodo** (
 1. Seguimiento comercial con "Este año": comparar el resumen contra la hoja "Resumen ejecutivo" del PDF y el embudo contra la tabla de la lámina 3.
 2. Capturar las metas del año y revisar "Venta por trimestre vs meta acumulada".
 3. Revisar la sección "Origen de leads Sin Recompra" contra la lámina 10.
+
+### 19.0.10.0.1
+
+- Origen de leads Sin Recompra igual que la lámina 10: Sin Recompra incluye Inadecuado, sin "Ganados en 0's" y sin leads sin origen o con origen "Recompra".
+- La barra "Acumulado" de la venta por trimestre pasa a gris para que se vea en modo oscuro.

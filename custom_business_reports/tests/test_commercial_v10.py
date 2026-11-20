@@ -7,7 +7,8 @@ from datetime import date
 from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.custom_business_reports.dashboard_defaults import (
-    COMMERCIAL, OLD_COMMERCIAL_SUBTITLES, V10, _available, _upgrade_commercial_v10)
+    COMMERCIAL, CUMULATIVE_COLOR, OLD_COMMERCIAL_SUBTITLES, OLD_CUMULATIVE_COLOR, V10, _available,
+    _fix_commercial_v10_1, _upgrade_commercial_v10)
 
 
 @tagged('post_install', '-at_install')
@@ -135,3 +136,15 @@ class TestCommercialV10(TransactionCase):
         data = dashboard.get_dashboard_data({})
         self.assertFalse([(w['title'], w['error']) for w in data['widgets'] if w['error']])
         self.assertNotIn('Embudo por segmento', [w['title'] for w in data['widgets']])
+
+    def test_fix_v10_1(self):
+        """19.0.10.0.1 cambia el color del acumulado solo si sigue siendo el de fábrica."""
+        dashboard = self.env.ref('custom_business_reports.dashboard_commercial')
+        measure = dashboard.widget_ids.measure_ids.filtered(lambda m: m.code == 'acumulado')
+        self.assertEqual(measure.color, CUMULATIVE_COLOR)
+        measure.color = OLD_CUMULATIVE_COLOR
+        _fix_commercial_v10_1(self.env)
+        self.assertEqual(measure.color, CUMULATIVE_COLOR)
+        measure.color = '#123456'
+        _fix_commercial_v10_1(self.env)
+        self.assertEqual(measure.color, '#123456')

@@ -114,6 +114,12 @@ INV_C = (OPP, ARCHIVED, INVITATIONS)
 DECLINED = "('report_invitation_status', '=', 'no_atendido')"
 PIPE_D = (OPP,) + SENT_PENDING
 ORIGIN = 'x_studio_cmo_se_gener_el_lead'
+# 19.0.10.0.0 (domino anterior) y 19.0.10.0.1: como la lámina 10, Sin Recompra incluye Inadecuado, sin
+# "Ganados en 0's" y sin los leads sin origen o con origen "Recompra".
+OLD_ORIGIN_DOMAIN = d(OPP, ARCHIVED, "('report_segment', '=', 'sin_recompra')")
+ORIGIN_DOMAIN = d(OPP, ARCHIVED, SR, NOT_EXCLUDED, "('%s', '!=', False)" % ORIGIN,
+                  "('%s', '!=', 'Recompra')" % ORIGIN)
+OLD_CUMULATIVE_COLOR, CUMULATIVE_COLOR = '#0B1324', '#64748B'
 
 
 def _since(days, field):
@@ -354,7 +360,7 @@ COMMERCIAL = {
              map={'periodo': 'date_closed'}, show_values=True, since=V10, sequence=142,
              subtitle='La meta se captura en CRM › Configuración › Metas de venta mensuales.', measures=[
                  m('Venta del trimestre', 'venta', 'sum', REVENUE, value_format='monetary', color='#2F5BEA'),
-                 m('Acumulado', 'acumulado', 'sum', REVENUE, value_format='monetary', color='#0B1324',
+                 m('Acumulado', 'acumulado', 'sum', REVENUE, value_format='monetary', color=CUMULATIVE_COLOR,
                    cumulative=True),
                  m('Meta acumulada', 'meta', 'sum', 'amount', source_model=GOAL, source_groupby_field='date',
                    value_format='monetary', color='#F28C28', cumulative=True),
@@ -379,7 +385,7 @@ COMMERCIAL = {
         dict(type='section', name='Origen de leads Sin Recompra', since=V10, sequence=170, requires=ORIGIN,
              subtitle='¿Cómo se generó el lead? · leads creados en el periodo, invitaciones cotizadas y ganados'),
         dict(type='chart', name='Leads Sin Recompra por canal de origen', width='6', model='crm.lead',
-             domain=d(OPP, ARCHIVED, "('report_segment', '=', 'sin_recompra')"), groupby=ORIGIN,
+             domain=ORIGIN_DOMAIN, groupby=ORIGIN,
              chart_type='hbar', sort_mode='value_desc', show_values=True, since=V10, sequence=172, height=380,
              requires=ORIGIN, measures=[
                  m('Leads', 'leads', color='#C9CED8'),
@@ -387,7 +393,7 @@ COMMERCIAL = {
                  m('Ganados', 'ganados', extra_domain="[('won_status', '=', 'won')]", color='#2F5BEA'),
              ]),
         dict(type='table', name='Origen de leads Sin Recompra (tabla)', width='6', model='crm.lead',
-             domain=d(OPP, ARCHIVED, "('report_segment', '=', 'sin_recompra')"), groupby=ORIGIN,
+             domain=ORIGIN_DOMAIN, groupby=ORIGIN,
              sort_mode='value_desc', row_label='Origen', since=V10, sequence=174, height=380, requires=ORIGIN,
              subtitle='% cot. = cotizados / leads · % gan. = ganados / cotizados', measures=[
                  m('Leads', 'leads', value_format='integer'),
@@ -895,3 +901,16 @@ def _upgrade_commercial_v10(env):
             vals['subtitle'] = item.get('subtitle')
         widget.write(vals)
     return _ensure_widgets(env, since=V10, xmlids=[COMMERCIAL['xmlid']])
+
+
+def _fix_commercial_v10_1(env):
+    """19.0.10.0.1: dominio de origen de leads como la lámina 10 y color del acumulado
+    visible en modo oscuro. Solo cambia lo que sigue igual a como se creó."""
+    dashboard = env.ref('%s.%s' % (MODULE, COMMERCIAL['xmlid']), raise_if_not_found=False)
+    if not dashboard:
+        return
+    origin = dashboard.widget_ids.filtered(lambda w: w.domain == OLD_ORIGIN_DOMAIN and w.name in (
+        'Leads Sin Recompra por canal de origen', 'Origen de leads Sin Recompra (tabla)'))
+    origin.write({'domain': ORIGIN_DOMAIN})
+    dashboard.widget_ids.measure_ids.filtered(
+        lambda m: m.code == 'acumulado' and m.color == OLD_CUMULATIVE_COLOR).write({'color': CUMULATIVE_COLOR})

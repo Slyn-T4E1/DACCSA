@@ -47,7 +47,7 @@ ejecutivo con desglose Sin Recompra / Recompra, histórico de invitaciones con
 sus indicadores, embudo Totales / SR / R, venta por trimestre vs meta
 acumulada, ingenierías y origen de leads Sin Recompra.
 """,
-    'version': '19.0.10.0.0',
+    'version': '19.0.10.0.1',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',
