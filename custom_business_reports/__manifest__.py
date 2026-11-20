@@ -37,8 +37,12 @@ sección por proyecto; se guarda en la semana cerrada y se envía por correo.
 19.0.8.0.0: tablas con meses en columnas ("Invitaciones a cotizar, mes a
 mes"), metas de venta mensuales configurables (indicadores y gráfica de
 venta vs meta) y antigüedad del pipeline por rangos de días.
+
+19.0.9.0.0: "Listados comerciales" como el Reporte Comercial: ganados (SR y R
+con semanas creación→cierre), perdidos, cancelados, en pausa, pipeline abierto
+y prospección, cada uno con indicadores, gráfica y listado.
 """,
-    'version': '19.0.8.0.0',
+    'version': '19.0.9.0.0',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',

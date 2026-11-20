@@ -123,6 +123,16 @@ class CrmLead(models.Model):
         compute='_compute_report_age_days',
     )
 
+    # 19.0.9.0.0 · Semanas de la creación al cierre (ganados y perdidos), como
+    # la columna "Sem" del reporte comercial: (fecha de cierre − creación) / 7.
+    report_close_weeks = fields.Float(
+        string='Semanas creación→cierre',
+        compute='_compute_report_close_weeks',
+        store=True,
+        digits=(16, 1),
+        aggregator='avg',
+    )
+
     # ------------------------------------------------------------------
     # Cálculos
     # ------------------------------------------------------------------
@@ -176,6 +186,15 @@ class CrmLead(models.Model):
                 continue
             prefix = 'ganado' if lead.won_status == 'won' else 'perdido'
             lead.report_close_status = '%s_%s' % (prefix, segment_key.get(lead.report_segment, 'otro'))
+
+    @api.depends('create_date', 'date_closed')
+    def _compute_report_close_weeks(self):
+        for lead in self:
+            if lead.create_date and lead.date_closed:
+                seconds = (lead.date_closed - lead.create_date).total_seconds()
+                lead.report_close_weeks = round(max(seconds, 0.0) / (7 * 24 * 3600), 1)
+            else:
+                lead.report_close_weeks = 0.0
 
     @api.depends('create_date')
     def _compute_report_age_days(self):

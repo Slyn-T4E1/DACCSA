@@ -158,7 +158,10 @@
                             <section t-att-class="widgetClass(widget)"
                                      t-att-style="widget.type === 'kpi' ? 'background:' + widget.color : ''">
                                 <div class="o_bd_widget_head">
-                                    <span t-attf-class="o_bd_title {{ widget.type === 'section' ? 'o_bd_section_title' : '' }}" t-esc="widget.title"/>
+                                    <span t-attf-class="o_bd_title {{ widget.type === 'section' ? 'o_bd_section_title' : '' }}">
+                                        <t t-esc="widget.title"/>
+                                        <span t-if="widget.type === 'list' and !widget.error" class="o_bd_count" t-esc="'(' + widget.count + ')'"/>
+                                    </span>
                                     <button t-if="data.can_edit" class="btn btn-link btn-sm o_bd_edit" title="Configurar"
                                             t-on-click="() => this.editWidget(widget)"><i class="fa fa-pencil"/></button>
                                 </div>
@@ -169,7 +172,10 @@
                                 <t t-elif="widget.type === 'kpi'">
                                     <div t-attf-class="o_bd_kpi_value {{ widget.state === 'good' ? 'o_bd_good_text' : widget.state === 'bad' ? 'o_bd_bad_text' : '' }} {{ widget.drilldown ? 'o_bd_clickable' : '' }}"
                                          t-att-title="kpiFull(widget)"
-                                         t-on-click="() => widget.drilldown and this.drilldown(widget)" t-esc="kpiText(widget)"/>
+                                         t-on-click="() => widget.drilldown and this.drilldown(widget)">
+                                        <t t-esc="kpiText(widget)"/>
+                                        <span t-if="widget.secondary" class="o_bd_kpi_secondary"> · <t t-esc="widget.secondary"/></span>
+                                    </div>
                                     <div class="o_bd_kpi_note" t-if="widget.subtitle" t-esc="widget.subtitle"/>
                                 </t>
                                 <t t-elif="widget.type === 'chart'">
@@ -188,24 +194,47 @@
                                     <div class="o_bd_table_wrap" t-att-style="'max-height:' + (widget.height + 160) + 'px'">
                                         <table class="table table-sm table-hover o_bd_table mb-0">
                                             <thead><tr>
+                                                <th t-if="widget.show_number" class="text-end o_bd_num">#</th>
                                                 <t t-foreach="widget.columns" t-as="column" t-key="column.name">
                                                     <th t-att-class="['float', 'monetary', 'integer'].includes(column.type) ? 'text-end' : ''" t-esc="column.label"/>
                                                 </t>
                                             </tr></thead>
                                             <tbody>
                                                 <t t-foreach="widget.records" t-as="record" t-key="record.id">
-                                                    <tr class="o_bd_row" t-on-click="() => this.openRecord(widget, record)">
+                                                    <!-- Encabezado de grupo (listado agrupado) -->
+                                                    <tr t-if="record.group" class="o_bd_group_row">
+                                                        <td t-att-colspan="widget.columns.length + (widget.show_number ? 1 : 0)">
+                                                            <t t-esc="record.group"/> (<t t-esc="record.count"/>)
+                                                        </td>
+                                                    </tr>
+                                                    <tr t-else="" class="o_bd_row" t-on-click="() => this.openRecord(widget, record)">
+                                                        <td t-if="widget.show_number" class="text-end text-muted o_bd_num" t-esc="record.number"/>
                                                         <t t-foreach="record.cells" t-as="value" t-key="value_index">
-                                                            <td t-att-class="['float', 'monetary', 'integer'].includes(widget.columns[value_index].type) ? 'text-end' : ''"
+                                                            <td t-attf-class="{{ ['float', 'monetary', 'integer'].includes(widget.columns[value_index].type) ? 'text-end' : ['char', 'many2one', 'text', 'selection'].includes(widget.columns[value_index].type) ? 'o_bd_wrap' : '' }} {{ record.red.includes(value_index) ? 'o_bd_red_text' : '' }}"
                                                                 t-esc="listCell(widget.columns[value_index], value)"/>
                                                         </t>
                                                     </tr>
                                                 </t>
-                                                <tr t-if="!widget.records.length"><td t-att-colspan="widget.columns.length" class="text-muted">Sin registros</td></tr>
+                                                <tr t-if="!widget.records.length"><td t-att-colspan="widget.columns.length + (widget.show_number ? 1 : 0)" class="text-muted">Sin registros</td></tr>
+                                                <!-- Total de todos los registros del filtro -->
+                                                <tr t-if="widget.total and widget.records.length" class="o_bd_total">
+                                                    <td t-if="widget.show_number"/>
+                                                    <t t-foreach="widget.total" t-as="value" t-key="value_index">
+                                                        <td t-att-class="value !== '' ? 'text-end' : ''">
+                                                            <t t-if="value !== ''" t-esc="listCell(widget.columns[value_index], value)"/>
+                                                            <t t-elif="value_index === 0">Total</t>
+                                                        </td>
+                                                    </t>
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </div>
-                                    <button class="btn btn-link btn-sm px-0" t-on-click="() => this.drilldown(widget)">Ver todos</button>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <button class="btn btn-link btn-sm px-0" t-on-click="() => this.drilldown(widget)">Ver todos</button>
+                                        <span t-if="widget.count > widget.shown" class="text-muted small">
+                                            Se muestran <t t-esc="widget.shown"/> de <t t-esc="widget.count"/>
+                                        </span>
+                                    </div>
                                 </t>
                             </section>
                         </t>

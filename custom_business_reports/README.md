@@ -17,6 +17,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | 6 | 19.0.6.0.0 | App "Tableros DACSA": tableros en JavaScript configurables (filtros, dominios, medidas y fórmulas); reemplaza los tableros de la app Tableros | Dirección, Mauricio |
 | 7 | 19.0.7.0.0 | PDF Reporte Semanal de Dirección (resumen + sección por proyecto), guardado en la semana y envío por correo | Dirección |
 | 7+ | 19.0.8.0.0 | Tabla "Invitaciones a cotizar, mes a mes" (meses en columnas), metas de venta mensuales configurables (Meta, Avance, Venta vs meta) y antigüedad del pipeline por rangos | Mauricio y Dirección |
+| 7+ | 19.0.9.0.0 | "Listados comerciales" como el Reporte Comercial: ganados SR/R (semanas creación→cierre), perdidos, cancelados, en pausa, pipeline abierto y prospección, cada uno con indicadores, gráfica y listado | Mauricio |
 
 ## Etapa 1 · Qué hace
 
@@ -273,3 +274,35 @@ Nuevo en la configuración de elementos (para armar otros sin programar):
 2. Tableros DACSA › Seguimiento comercial: revisar Meta de venta y Avance vs meta con el periodo "Este año" y "Este mes".
 3. Comparar la tabla mes a mes contra la gráfica "Invitaciones a cotizar por mes" (mismos números) y dar clic en una celda.
 4. Revisar la gráfica de venta vs meta y la de antigüedad; clic en una barra abre las oportunidades del rango.
+
+## 19.0.9.0.0 · Qué hace
+
+Tablero **Listados comerciales** rearmado como las láminas 4 a 9 del Reporte Comercial. Cada sección trae indicadores Sin Recompra / Recompra (número · monto), su gráfica y su listado:
+
+| Sección | Indicadores | Gráfica | Listado |
+|---|---|---|---|
+| Proyectos ganados | Ganados SR y R (ticket y semanas), venta, semanas creación→cierre | — | Dos listados (SR y R) con #, creado, cierre, semanas, cliente, proyecto, monto y total |
+| Proyectos perdidos | Perdidos SR, R y total | Razones de pérdida | Perdidos por monto con SR/R y razón |
+| Proyectos cancelados | Cancelados SR, R y total (por fecha de creación) | Cancelados por mes de creación | Cancelados por monto |
+| Proyectos en pausa | En pausa SR, R y total (solo con monto) | Antigüedad 0–90, 91–180, 181–365, más de 365 días | En pausa por monto con días (rojo: más de un año) |
+| Pipeline abierto | Enviadas (SR/R), Por enviar, En pausa, Enviadas con más de 180 días | Antigüedad de enviadas (# y monto) + tabla por rango | Enviadas por monto con días (rojo: más de 90) |
+| Prospección Sin Recompra | — | Leads por mes de creación y etapa | Leads de los últimos 3 meses agrupados por etapa, con origen |
+
+"Sin Recompra" incluye Inadecuado y sin segmento (como el reporte de Mauricio). Se agrega el campo **Semanas creación→cierre** en la oportunidad.
+
+Nuevo en la configuración (para cualquier tablero):
+
+- Título o nota con valores: `{código}` se cambia por el valor del indicador, p. ej. `SR {env_sr} ({env_sr_monto})`.
+- Indicador › **Segundo valor**: muestra "número · monto".
+- Gráfica › **Números sobre las barras**.
+- Listado › **Columnas** con encabezado propio (`date_closed:Cierre`), **Agrupar listado por**, **Resaltar en rojo** (`report_age_days > 90`), **Numerar renglones** y **Renglón de total** (de todos los registros del filtro).
+- Formato **Número (1 decimal)**.
+- Dominios con fechas relativas: `context_today()` y `relativedelta`.
+
+Al actualizar se quitan los 5 listados anteriores de "Listados comerciales" (ganados, perdidos, pipeline, pausa y cancelados) y se agregan las secciones nuevas; "Oportunidades lentas" se queda al final.
+
+## 19.0.9.0.0 · Cómo probar
+
+1. Tableros DACSA › Listados comerciales con "Este año": comparar cada sección contra las láminas 4 a 9 del PDF (p. ej. perdidos SR 16 · $737.9 M, R 14 · $141.8 M; en pausa con monto SR 8 · $222.9 M, R 6 · $132.4 M).
+2. Clic en una barra o en un renglón abre las oportunidades.
+3. Pipeline abierto y En pausa no cambian con el periodo (son a hoy).

@@ -29,6 +29,9 @@ function formatValue(value, format, { abbreviate = false, currency = { symbol: "
     if (format === "percent") {
         return `${(number * 100).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
     }
+    if (format === "number1") {
+        return number.toLocaleString("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    }
     const abs = Math.abs(number);
     const sign = number < 0 ? "-" : "";
     let text;
@@ -45,6 +48,63 @@ function formatValue(value, format, { abbreviate = false, currency = { symbol: "
         return currency.position === "after" ? `${sign}${text} ${currency.symbol}` : `${sign}${currency.symbol}${text}`;
     }
     return `${sign}${text}`;
+}
+
+// ---------------------------------------------------------------------------
+// Números sobre las barras (19.0.9.0.0): plugin propio de Chart.js, sin
+// librerías extra. En barras apiladas el número va dentro del segmento.
+// ---------------------------------------------------------------------------
+function valueLabelsPlugin(formatter, color) {
+    return {
+        id: "ccrValueLabels",
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            const horizontal = chart.options.indexAxis === "y";
+            ctx.save();
+            ctx.font = "11px sans-serif";
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta.hidden || !chart.isDatasetVisible(datasetIndex)) {
+                    return;
+                }
+                // En gráficas combinadas solo las barras llevan número (la línea se lee en su eje)
+                if (meta.type === "line" && chart.config.type === "bar") {
+                    return;
+                }
+                const stacked = meta.type === "bar" && !!(chart.options.scales?.y?.stacked);
+                meta.data.forEach((element, index) => {
+                    const value = dataset.data[index];
+                    if (!value) {
+                        return;
+                    }
+                    const text = formatter(value, dataset);
+                    const { x, y } = element.tooltipPosition();
+                    if (stacked) {
+                        // Dentro del segmento si cabe
+                        const height = Math.abs(element.base - element.y);
+                        if (height < 12) {
+                            return;
+                        }
+                        ctx.fillStyle = "#fff";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(text, x, (element.y + element.base) / 2);
+                    } else if (horizontal) {
+                        ctx.fillStyle = color;
+                        ctx.textAlign = "left";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(text, x + 4, y);
+                    } else {
+                        ctx.fillStyle = color;
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "bottom";
+                        ctx.fillText(text, x, y - 3);
+                    }
+                });
+            });
+            ctx.restore();
+        },
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -108,10 +168,20 @@ class DashboardChart extends Component {
                 _format: d.format,
             };
         });
+        const plugins = [];
+        if (w.show_values && !pie) {
+            plugins.push(valueLabelsPlugin(
+                (value, dataset) => formatValue(value, dataset._format || w.format, { abbreviate: true, currency }),
+                textColor,
+            ));
+        }
         this.chart = new window.Chart(this.canvasRef.el, {
             type,
             data: { labels: w.labels, datasets },
+            plugins,
             options: {
+                // Espacio arriba para los números sobre las barras
+                layout: w.show_values ? { padding: { top: 16, right: w.chart_type === "hbar" ? 30 : 0 } } : {},
                 maintainAspectRatio: false,
                 indexAxis: w.chart_type === "hbar" ? "y" : "x",
                 color: textColor,
@@ -402,6 +472,19 @@ export class BusinessDashboardAction extends Component {
     }
 
     listCell(column, value) {
+        if (column.type === "float" && column.digits !== undefined && value !== "") {
+            // Decimales del campo (p. ej. semanas con 1 decimal)
+            return Number(value).toLocaleString("es-MX", {
+                minimumFractionDigits: column.digits, maximumFractionDigits: column.digits,
+            });
+        }
+        if (column.type === "monetary" && value !== "") {
+            // Montos completos sin centavos, como en el reporte comercial ($2,245,193)
+            const amount = Math.round(Number(value));
+            const text = Math.abs(amount).toLocaleString("es-MX", { maximumFractionDigits: 0 });
+            const sign = amount < 0 ? "-" : "";
+            return this.currency.position === "after" ? `${sign}${text} ${this.currency.symbol}` : `${sign}${this.currency.symbol}${text}`;
+        }
         if (["float", "monetary", "integer"].includes(column.type) && value !== "") {
             return formatValue(value, column.type === "monetary" ? "monetary" : column.type === "integer" ? "integer" : "number",
                 { currency: this.currency });

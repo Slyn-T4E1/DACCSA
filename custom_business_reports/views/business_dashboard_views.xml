@@ -88,6 +88,8 @@
                                 <li><b>Elementos</b>: indicador, gráfica, tabla o listado. Se elige el modelo, el dominio (qué registros) y, en gráficas y tablas, la agrupación.</li>
                                 <li><b>Medidas</b>: suma, promedio, mínimo, máximo o conteo de un campo, con un dominio adicional opcional. También pueden ser fórmulas.</li>
                                 <li><b>Fórmulas</b>: usan los códigos de los indicadores (p. ej. <code>div(ganados, ganados + perdidos)</code>) o, en tablas, los códigos de las columnas del renglón (p. ej. <code>planeado - real</code>). Funciones: div(a, b) (división que da 0 si b es 0), abs, min, max, round. Un indicador marcado como "Oculto" sirve solo para fórmulas.</li>
+                                <li><b>Valores en textos</b>: en el título o la nota de cualquier elemento, <code>{código}</code> se cambia por el valor del indicador con ese código (p. ej. <code>SR {env_sr} ({env_sr_monto})</code>). Un indicador puede mostrar un "Segundo valor" junto al principal (p. ej. número · monto).</li>
+                                <li><b>Fechas relativas en dominios</b>: <code>context_today()</code> y <code>relativedelta</code>, p. ej. <code>[('create_date', '&lt;', (context_today() - relativedelta(days=180)).strftime('%Y-%m-%d'))]</code>.</li>
                                 <li>Los cambios se ven al presionar "Actualizar" en el tablero. Las actualizaciones del módulo no sobrescriben los tableros.</li>
                             </ul>
                         </page>
@@ -230,6 +232,10 @@
                             <group invisible="widget_type != 'list'">
                                 <field name="list_fields" placeholder="date_closed, partner_id, name, expected_revenue"/>
                                 <field name="list_order" placeholder="expected_revenue desc"/>
+                                <field name="list_group_field" placeholder="p. ej. stage_id"/>
+                                <field name="list_highlight" placeholder="p. ej. report_age_days &gt; 365"/>
+                                <field name="list_show_number"/>
+                                <field name="list_show_total"/>
                             </group>
                         </page>
                         <page name="display" string="Formato">
@@ -240,10 +246,12 @@
                                     <field name="color_mode"/>
                                     <field name="threshold" invisible="color_mode != 'threshold'"/>
                                     <field name="color"/>
+                                    <field name="secondary_code" placeholder="p. ej. pipeline_monto"/>
                                 </group>
                                 <group invisible="widget_type != 'chart'">
                                     <field name="chart_type"/>
                                     <field name="show_legend"/>
+                                    <field name="show_values"/>
                                 </group>
                                 <group invisible="widget_type != 'table'">
                                     <field name="row_label"/>

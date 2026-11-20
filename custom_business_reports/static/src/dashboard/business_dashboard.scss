@@ -111,6 +111,8 @@
     .o_bd_chart { position: relative; width: 100%; }
 
     // Tablas y listados
+    .o_bd_count { font-weight: 400; opacity: 0.7; margin-left: 4px; }
+    .o_bd_kpi_secondary { font-size: 0.8em; }
     .o_bd_table_tools { margin-bottom: 6px; max-width: 280px; }
     .o_bd_table_wrap { overflow: auto; }
     .o_bd_table {
@@ -132,6 +134,11 @@
         td.o_bd_total_cell { font-weight: 700; background-color: $o-gray-100; }
         th.o_bd_total_cell { background-color: #1E3A8A; }
         .o_bd_row_pct td { font-size: 0.8rem; color: $o-gray-600; }
+        // Listados (19.0.9.0.0): grupos, número de renglón y valores en rojo
+        .o_bd_group_row td { font-weight: 700; background-color: $o-gray-200; cursor: default; }
+        .o_bd_num { width: 2.5rem; }
+        .o_bd_red_text { color: #DC2626; font-weight: 700; }
+        td.o_bd_wrap { white-space: normal; min-width: 110px; }
         .o_bd_row_pct td.o_bd_sticky { font-weight: 400; padding-left: 1.25rem; }
     }
 }

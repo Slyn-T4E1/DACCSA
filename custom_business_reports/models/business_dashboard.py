@@ -31,9 +31,20 @@ Cálculo (get_dashboard_data):
     (business.sales.goal) en una gráfica de venta por mes. Se alinean por el
     campo de fecha source_groupby_field con el mismo intervalo.
   * Series como línea o barra y eje derecho por medida (gráficas combinadas).
+
+19.0.9.0.0:
+  * Notas y títulos con valores: {código} se cambia por el valor de ese
+    indicador (p. ej. "SR {env_sr} ({env_sr_monto})"). Indicador con un
+    segundo valor (secondary_code): "16 · $362.5 M".
+  * Listados con número de renglón, total, cuenta, resaltado en rojo por
+    regla (p. ej. report_age_days > 365) y agrupación por un campo.
+  * Números sobre las barras (show_values).
+  * Dominios con fechas relativas: context_today() y relativedelta, p. ej.
+    [('create_date', '>=', (context_today() - relativedelta(months=2)).strftime('%Y-%m-01'))].
 """
 import calendar
 import logging
+import re
 from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
 
@@ -80,7 +91,8 @@ DATE_PRESETS = [
 ]
 INTERVALS = [('day', 'Día'), ('week', 'Semana'), ('month', 'Mes'), ('quarter', 'Trimestre'), ('year', 'Año')]
 AGGREGATES = [('sum', 'Suma'), ('avg', 'Promedio'), ('min', 'Mínimo'), ('max', 'Máximo'), ('count', 'Conteo')]
-VALUE_FORMATS = [('number', 'Número'), ('integer', 'Entero'), ('monetary', 'Moneda'), ('percent', 'Porcentaje')]
+VALUE_FORMATS = [('number', 'Número'), ('number1', 'Número (1 decimal)'), ('integer', 'Entero'),
+                 ('monetary', 'Moneda'), ('percent', 'Porcentaje')]
 COLOR_MODES = [('none', 'Sin color'), ('sign', 'Verde si ≥ 0, rojo si < 0'),
                ('threshold', 'Rojo si es menor al umbral')]
 SERIES_TYPES = [('bar', 'Barras'), ('line', 'Línea')]
@@ -89,6 +101,29 @@ SORT_MODES = [('group', 'Por agrupación'), ('value_desc', 'Mayor a menor (1a me
 WIDTHS = [('3', '1/4'), ('4', '1/3'), ('6', '1/2'), ('8', '2/3'), ('9', '3/4'), ('12', 'Completo')]
 NUMERIC_TYPES = ('integer', 'float', 'monetary')
 GROUPABLE_TYPES = ('many2one', 'selection', 'date', 'datetime', 'char', 'boolean', 'integer')
+
+HIGHLIGHT_RULE = re.compile(r'^\s*([\w.]+)\s*(>=|<=|>|<)\s*(-?\d+(?:\.\d+)?)\s*$')
+PLACEHOLDER = re.compile(r'\{(\w+)\}')
+
+
+def _short_number(value, value_format, abbreviate=True, symbol='$'):
+    """Número corto para notas (igual que la interfaz): 362.5 M, 45 k, 35.6 %."""
+    value = value or 0.0
+    if value_format == 'percent':
+        return ('%.1f %%' % (value * 100)).replace('.0 %', ' %')
+    amount, sign = abs(value), '-' if value < 0 else ''
+    if abbreviate and amount >= 1e6:
+        text = ('{:,.0f}' if amount >= 1e8 else '{:,.1f}').format(amount / 1e6).removesuffix('.0') + ' M'
+    elif abbreviate and amount >= 1e4:
+        text = '{:,.0f} k'.format(amount / 1e3)
+    elif value_format == 'number1':
+        text = '{:,.1f}'.format(amount)
+    elif value_format == 'integer' or float(amount).is_integer():
+        text = '{:,.0f}'.format(amount)
+    else:
+        text = '{:,.2f}'.format(amount)
+    return sign + (symbol if value_format == 'monetary' else '') + text
+
 
 # Funciones disponibles en las fórmulas
 FORMULA_FUNCTIONS = {
@@ -206,16 +241,20 @@ class BusinessDashboard(models.Model):
                     kpi_errors[widget.code] = str(error)
                     kpi_values[widget.code] = 0.0
             pending -= ready
+        kpi_widgets = {w.code: w for w in kpis}
         # 2) Datos de cada elemento visible
         for widget in self.widget_ids.filtered(lambda w: not w.hidden).sorted(lambda w: (w.sequence, w.id)):
-            data = {'id': widget.id, 'type': widget.widget_type, 'title': widget.name,
-                    'subtitle': widget.subtitle or '', 'width': int(widget.width or 12),
+            # Título y nota pueden llevar valores de indicadores: {código}
+            data = {'id': widget.id, 'type': widget.widget_type,
+                    'title': widget._render_text(widget.name, kpi_values, kpi_widgets),
+                    'subtitle': widget._render_text(widget.subtitle, kpi_values, kpi_widgets),
+                    'width': int(widget.width or 12),
                     'height': widget.height or 320, 'error': False}
             try:
                 if widget.widget_type == 'kpi':
                     if widget.code in kpi_errors:
                         raise UserError(kpi_errors[widget.code])
-                    data.update(widget._kpi_payload(kpi_values))
+                    data.update(widget._kpi_payload(kpi_values, kpi_widgets))
                 elif widget.widget_type == 'chart':
                     data.update(widget._chart_payload(values))
                 elif widget.widget_type == 'table':
@@ -471,10 +510,14 @@ class BusinessDashboardWidget(models.Model):
     color_mode = fields.Selection(COLOR_MODES, string='Color', default='none')
     threshold = fields.Char(string='Umbral', help='Número o fórmula, p. ej. 0.15 o alerta_margen.')
     color = fields.Char(string='Color de fondo', default='#F9FAFB')
+    secondary_code = fields.Char(
+        string='Segundo valor', help='Código de otro indicador que se muestra junto al valor, p. ej. el monto: '
+                                     '"16 · $362.5 M".')
 
     # ---------------- Gráfica ----------------
     chart_type = fields.Selection(CHART_TYPES, string='Tipo de gráfica', default='bar')
     show_legend = fields.Boolean(string='Mostrar leyenda', default=True)
+    show_values = fields.Boolean(string='Números sobre las barras')
 
     # ---------------- Tabla ----------------
     show_total = fields.Boolean(string='Renglón de total', default=True)
@@ -487,8 +530,16 @@ class BusinessDashboardWidget(models.Model):
 
     # ---------------- Listado ----------------
     list_fields = fields.Char(string='Columnas', help='Campos separados por coma, p. ej. '
-                                                     'date_closed, partner_id, name, expected_revenue.')
+                                                     'date_closed, partner_id, name, expected_revenue. Para cambiar '
+                                                     'el encabezado: campo:Etiqueta, p. ej. date_closed:Cierre.')
     list_order = fields.Char(string='Orden del listado', help='P. ej. expected_revenue desc.')
+    list_show_number = fields.Boolean(string='Numerar renglones (#)')
+    list_show_total = fields.Boolean(string='Renglón de total', help='Suma las columnas numéricas de todos los '
+                                                                      'registros (no solo los que se muestran).')
+    list_highlight = fields.Char(string='Resaltar en rojo', help='Regla "campo > número", p. ej. '
+                                                               'report_age_days > 365.')
+    list_group_field = fields.Char(string='Agrupar listado por', help='Campo, p. ej. stage_id: un encabezado '
+                                                                     'por cada valor con su cuenta.')
 
     # ---------------- Detalle ----------------
     drilldown_view_id = fields.Many2one('ir.ui.view', string='Formulario al abrir un registro',
@@ -503,7 +554,7 @@ class BusinessDashboardWidget(models.Model):
     # Validaciones y vista previa
     # ------------------------------------------------------------------
     @api.constrains('domain', 'model_id', 'formula', 'code', 'list_fields', 'widget_type', 'range_bounds',
-                    'range_field_id')
+                    'range_field_id', 'list_highlight', 'list_group_field')
     def _check_config(self):
         for widget in self:
             if widget.range_field_id:
@@ -520,6 +571,14 @@ class BusinessDashboardWidget(models.Model):
                 raise ValidationError(_('El indicador "%s" necesita un código.', widget.name))
             if widget.widget_type == 'list' and widget.model_id:
                 model = self.env[widget.model_name]
+                if widget.list_highlight:
+                    rule = HIGHLIGHT_RULE.match(widget.list_highlight)
+                    if not rule or rule.group(1) not in model._fields:
+                        raise ValidationError(_('La regla para resaltar de "%s" debe ser "campo > número", p. ej. '
+                                                'report_age_days > 365.', widget.name))
+                if widget.list_group_field and widget.list_group_field not in model._fields:
+                    raise ValidationError(_('El campo "%(field)s" no existe en %(model)s.',
+                                            field=widget.list_group_field, model=widget.model_id.name))
                 for name in widget._list_field_names():
                     if name not in model._fields:
                         raise ValidationError(_('El campo "%(field)s" no existe en %(model)s.',
@@ -527,7 +586,7 @@ class BusinessDashboardWidget(models.Model):
 
     def _check_domain(self, domain):
         try:
-            self.env[self.model_name].search_count(safe_eval(domain), limit=1)
+            self.env[self.model_name].search_count(self._eval_domain(domain), limit=1)
         except Exception as error:
             raise ValidationError(_('Dominio inválido en "%(name)s": %(error)s', name=self.name, error=error)) from error
 
@@ -559,6 +618,11 @@ class BusinessDashboardWidget(models.Model):
     # ------------------------------------------------------------------
     # Dominio con filtros
     # ------------------------------------------------------------------
+    def _eval_domain(self, text):
+        """Dominio escrito como texto. Acepta fechas relativas con context_today() y relativedelta."""
+        today = fields.Date.context_today(self)
+        return list(safe_eval(text or '[]', {'context_today': lambda: today, 'relativedelta': relativedelta}))
+
     def _filter_field(self, flt, period_field=None):
         """Campo al que se aplica un filtro en este elemento (None = no se aplica)."""
         mapping = self.filter_map_ids.filtered(lambda m: m.filter_id == flt)
@@ -574,9 +638,9 @@ class BusinessDashboardWidget(models.Model):
     def _full_domain(self, filter_values, extra_domain=None, period_field=None):
         self.ensure_one()
         model = self.env[self.model_name]
-        domain = list(safe_eval(self.domain or '[]'))
+        domain = self._eval_domain(self.domain)
         if extra_domain:
-            domain += list(safe_eval(extra_domain))
+            domain += self._eval_domain(extra_domain)
         for flt in self.dashboard_id.filter_ids:
             path = self._filter_field(flt, period_field)
             if path and _resolve_field(model, path):
@@ -602,7 +666,7 @@ class BusinessDashboardWidget(models.Model):
             return (self.env[self.model_name],
                     self._full_domain(filter_values, measure.extra_domain, measure.period_field))
         model = self.env[measure.source_model_id.model]
-        domain = list(safe_eval(measure.extra_domain or '[]'))
+        domain = self._eval_domain(measure.extra_domain)
         period_field = measure.period_field or measure.source_groupby_field
         for flt in self.dashboard_id.filter_ids:
             mapping = self.filter_map_ids.filtered(lambda m, flt=flt: m.filter_id == flt)
@@ -670,8 +734,9 @@ class BusinessDashboardWidget(models.Model):
             return None
         return _safe_formula(self.threshold, kpi_values)
 
-    def _kpi_payload(self, kpi_values):
+    def _kpi_payload(self, kpi_values, kpi_widgets):
         value = kpi_values.get(self.code, 0.0)
+        secondary = kpi_widgets.get(self.secondary_code) if self.secondary_code else None
         return {
             'value': value,
             'display': self._format(value),
@@ -679,13 +744,29 @@ class BusinessDashboardWidget(models.Model):
             'color': self.color or '#F9FAFB',
             'state': _color_state(self.color_mode, value, self._threshold_value(kpi_values)),
             'drilldown': bool(self.model_id and not self.formula),
+            'secondary': secondary._short(kpi_values.get(secondary.code)) if secondary else False,
         }
+
+    def _short(self, value):
+        return _short_number(value, self.value_format, self.abbreviate, self.env.company.currency_id.symbol)
+
+    def _render_text(self, text, kpi_values, kpi_widgets):
+        """Cambia {código} por el valor (corto) del indicador con ese código."""
+        def replace(match):
+            code = match.group(1)
+            if code not in kpi_values:
+                return match.group(0)
+            widget = kpi_widgets.get(code)
+            return widget._short(kpi_values[code]) if widget else str(kpi_values[code])
+        return PLACEHOLDER.sub(replace, text or '')
 
     def _format(self, value):
         if self.value_format == 'percent':
             return '%.2f %%' % ((value or 0.0) * 100)
         if self.value_format == 'integer':
             return '{:,.0f}'.format(value or 0)
+        if self.value_format == 'number1':
+            return '{:,.1f}'.format(value or 0.0)
         symbol = self.env.company.currency_id.symbol if self.value_format == 'monetary' else ''
         return '%s%s' % (symbol, '{:,.2f}'.format(value or 0.0))
 
@@ -805,7 +886,7 @@ class BusinessDashboardWidget(models.Model):
                          'color': palette[i % len(palette)], 'measure_id': measure.id, 'group2': k2}
                         for i, k2 in enumerate(keys2)]
             return {'chart_type': self.chart_type, 'labels': [labels[k][0] for k in keys1],
-                    'keys': keys1, 'datasets': datasets, 'legend': self.show_legend,
+                    'keys': keys1, 'datasets': datasets, 'legend': self.show_legend, 'show_values': self.show_values,
                     'format': measure.value_format}
         keys, groups, data = self._grouped(filter_values)
         datasets = []
@@ -821,7 +902,7 @@ class BusinessDashboardWidget(models.Model):
                              'format': measure.value_format or 'number'})
         right = next((d for d in datasets if d['right_axis']), None)
         return {'chart_type': self.chart_type, 'labels': [groups[k][0] for k in keys], 'keys': keys,
-                'datasets': datasets, 'legend': self.show_legend,
+                'datasets': datasets, 'legend': self.show_legend, 'show_values': self.show_values,
                 'format': next((d['format'] for d in datasets if not d['right_axis']), 'number'),
                 'right_format': right['format'] if right else False}
 
@@ -893,33 +974,84 @@ class BusinessDashboardWidget(models.Model):
             'transposed': True, 'drilldown': True,
         }
 
+    def _list_columns_spec(self):
+        """[(campo, etiqueta o None)] de "Columnas" (campo o campo:Etiqueta)."""
+        spec = []
+        for part in (self.list_fields or '').split(','):
+            name, _sep, label = part.partition(':')
+            if name.strip():
+                spec.append((name.strip(), label.strip() or None))
+        return spec
+
     def _list_field_names(self):
-        return [name.strip() for name in (self.list_fields or '').split(',') if name.strip()]
+        return [name for name, _label in self._list_columns_spec()]
 
     def _list_payload(self, filter_values):
         model = self.env[self.model_name].sudo(False)
         names = self._list_field_names() or ['display_name']
-        records = model.search_read(self._full_domain(filter_values), names,
-                                    order=self.list_order or None, limit=self.limit or 15)
+        domain = self._full_domain(filter_values)
+        group_name = self.list_group_field if self.list_group_field in model._fields else False
+        order = self.list_order or None
+        if group_name:      # agrupado: primero por el campo (en el orden de su modelo), luego el orden indicado
+            order = ', '.join(part for part in (group_name, self.list_order) if part)
+        read_names = names + ([group_name] if group_name and group_name not in names else [])
+        records = model.search_read(domain, read_names, order=order, limit=self.limit or 15)
+        labels = dict(self._list_columns_spec())
         columns = []
         for name in names:
             field = model._fields[name]
-            columns.append({'name': name, 'label': field.get_description(self.env)['string'],
-                            'type': field.type})
-        rows = []
-        for record in records:
+            column = {'name': name, 'label': labels.get(name) or field.get_description(self.env)['string'],
+                      'type': field.type}
+            if field.type == 'float' and isinstance(field.get_digits(self.env), tuple):
+                column['digits'] = field.get_digits(self.env)[1]
+            columns.append(column)
+        rule = HIGHLIGHT_RULE.match(self.list_highlight or '')
+        compare = {'>': lambda a, b: a > b, '>=': lambda a, b: a >= b,
+                   '<': lambda a, b: a < b, '<=': lambda a, b: a <= b}
+
+        def cell_text(name, kind, value):
+            if isinstance(value, (list, tuple)) and len(value) == 2 and kind == 'many2one':
+                return value[1]
+            if kind == 'selection':
+                return dict(model._fields[name]._description_selection(self.env)).get(value, value)
+            if kind in ('date', 'datetime') and value:
+                return format_date(self.env, value)
+            return value
+
+        rows, group_rows, last_group = [], {}, object()
+        for number, record in enumerate(records, start=1):
+            if group_name and record[group_name] != last_group:
+                last_group = record[group_name]
+                label = cell_text(group_name, model._fields[group_name].type, last_group) or _('Sin definir')
+                group_rows[len(rows)] = {'id': 'group-%s' % len(rows), 'group': label, 'count': 0}
+                rows.append(group_rows[len(rows)])
+            if group_name:
+                rows[max(group_rows)]['count'] += 1
             cells = []
             for column in columns:
-                value = record.get(column['name'])
-                if isinstance(value, (list, tuple)) and len(value) == 2 and column['type'] == 'many2one':
-                    value = value[1]
-                elif column['type'] == 'selection':
-                    value = dict(model._fields[column['name']]._description_selection(self.env)).get(value, value)
-                elif column['type'] in ('date', 'datetime') and value:
-                    value = format_date(self.env, value)
+                value = cell_text(column['name'], column['type'], record.get(column['name']))
                 cells.append(value if value not in (False, None) else '')
-            rows.append({'id': record['id'], 'cells': cells})
-        return {'columns': columns, 'records': rows, 'model': self.model_name}
+            red = []
+            if rule:
+                field_value = record.get(rule.group(1))
+                if field_value is not None and field_value is not False and \
+                        compare[rule.group(2)](field_value, float(rule.group(3))):
+                    red = [i for i, column in enumerate(columns) if column['name'] == rule.group(1)] or \
+                        list(range(len(columns)))
+            rows.append({'id': record['id'], 'number': number, 'cells': cells, 'red': red})
+        # Total y cuenta de TODOS los registros del dominio (no solo los que se muestran)
+        count = model.search_count(domain)
+        total = False
+        if self.list_show_total:
+            numeric = [c['name'] for c in columns
+                       if c['type'] in NUMERIC_TYPES and model._fields[c['name']].store
+                       and model._fields[c['name']].aggregator == 'sum']
+            sums = dict(zip(numeric, model._read_group(domain, [], ['%s:sum' % n for n in numeric])[0])) \
+                if numeric else {}
+            total = [sums.get(c['name'], '') if c['name'] in sums else '' for c in columns]
+        return {'columns': columns, 'records': rows, 'model': self.model_name, 'count': count,
+                'shown': len(records), 'total': total, 'show_number': self.list_show_number,
+                'grouped': bool(group_name)}
 
     # ------------------------------------------------------------------
     # Detalle (clic en un valor, barra o renglón)
@@ -1074,7 +1206,7 @@ class BusinessDashboardMeasure(models.Model):
                                             field=measure.source_groupby_field, model=measure.source_model_id.name))
                 if measure.extra_domain:
                     try:
-                        model.search_count(safe_eval(measure.extra_domain), limit=1)
+                        model.search_count(measure.widget_id._eval_domain(measure.extra_domain), limit=1)
                     except Exception as error:
                         raise ValidationError(_('Dominio inválido en "%(name)s": %(error)s',
                                                 name=measure.name, error=error)) from error

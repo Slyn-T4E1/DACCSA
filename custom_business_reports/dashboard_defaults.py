@@ -185,6 +185,63 @@ COMMERCIAL = {
     ],
 }
 
+# ---------------------------------------------------------------------------
+# Listados comerciales (19.0.9.0.0): una sección por lámina del Reporte
+# Comercial (4b a 9): indicadores Sin Recompra / Recompra, gráfica y listado.
+# "Sin Recompra" incluye Inadecuado y sin segmento (como el reporte de
+# Mauricio); "Recompra" es solo el segmento Recompra.
+# ---------------------------------------------------------------------------
+SR = "('report_segment', '!=', 'recompra')"
+R = "('report_segment', '=', 'recompra')"
+WON_D = (OPP, ARCHIVED, "('won_status', '=', 'won')", NOT_EXCLUDED)
+LOST_D = (OPP, "('active', '=', False)", "('won_status', '=', 'lost')")
+CANCEL_D = (OPP, ARCHIVED, "('stage_id.report_close_on_enter', '=', True)")
+PAUSE_D = (OPP, "('report_open_status', '=', 'pausa')", "('won_status', '=', 'pending')")
+WITH_AMOUNT = "('expected_revenue', '>', 0)"
+SENT_D = (OPP,) + SENT_PENDING
+TO_SEND_D = (OPP, "('report_stage_group', '=', 'por_enviar')", "('won_status', '=', 'pending')",
+             "('stage_id.report_close_on_enter', '=', False)")
+OLDER_180 = "('create_date', '<', (context_today() - relativedelta(days=180)).strftime('%Y-%m-%d'))"
+LAST_3_MONTHS = "('create_date', '>=', (context_today() - relativedelta(months=2)).strftime('%Y-%m-01'))"
+PROSPECTING_D = (OPP, ARCHIVED, "('report_segment', '=', 'sin_recompra')",
+                 "('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'declinado'])")
+REVENUE = 'expected_revenue'
+V9 = '19.0.9.0.0'
+
+
+def segment_kpis(prefix, label, base, period, sequence, color, amount_note=True):
+    """Indicadores "<label> Sin Recompra", "<label> Recompra" y el total, cada uno
+    con número · monto. Los montos van en indicadores ocultos (<código>_monto)."""
+    items = []
+    for i, (suffix, title, extra) in enumerate((('_sr', 'Sin Recompra', (SR,)), ('_r', 'Recompra', (R,)),
+                                                ('', 'Total', ()))):
+        code = prefix + suffix
+        domain = d(*(base + extra))
+        items += [
+            dict(type='kpi', name='%s %s' % (label, title) if suffix else '%s · total' % label, code=code,
+                 width='4', model='crm.lead', domain=domain, map={'periodo': period}, since=V9,
+                 sequence=sequence + i * 2, measures=[m(title, code)], value_format='integer', abbreviate=False,
+                 secondary_code=code + '_monto', color=color,
+                 subtitle='proyectos · monto' if amount_note else False),
+            dict(type='kpi', name='%s %s (monto)' % (label, title), code=code + '_monto', hidden=True,
+                 model='crm.lead', domain=domain, map={'periodo': period}, since=V9, sequence=sequence + i * 2 + 1,
+                 measures=[m('Monto', code + '_monto', 'sum', REVENUE)], value_format='monetary'),
+        ]
+    return items
+
+
+def hidden_kpi(name, code, domain, period, sequence, aggregate='count', field=None, value_format='integer',
+               formula=None):
+    item = dict(type='kpi', name=name, code=code, hidden=True, since=V9, sequence=sequence,
+                value_format=value_format, abbreviate=value_format not in ('number', 'number1'))
+    if formula:
+        item['formula'] = formula
+    else:
+        item.update(model='crm.lead', domain=domain, map={'periodo': period},
+                    measures=[m(name, code, aggregate, field)])
+    return item
+
+
 LIST_COLUMNS = 'partner_id, name, report_segment, user_id, expected_revenue'
 COMMERCIAL_LISTS = {
     'xmlid': 'dashboard_commercial_lists',
@@ -192,34 +249,163 @@ COMMERCIAL_LISTS = {
     'category': 'Comercial',
     'sequence': 20,
     'groups': ['sales_team.group_sale_salesman'],
-    'description': 'Oportunidades por estatus. Clic en un renglón para abrirla; "Ver todos" abre la lista completa.',
+    'description': 'Como el Reporte Comercial: ganados, perdidos, cancelados, en pausa, pipeline abierto y '
+                   'prospección, cada uno con indicadores Sin Recompra / Recompra, gráfica y listado. Sin Recompra '
+                   'incluye Inadecuado. Clic en un renglón para abrir la oportunidad.',
     'filters': [
-        dict(key='periodo', name='Periodo (cierre)', filter_type='date', field_name='date_closed',
+        dict(key='periodo', name='Periodo', filter_type='date', field_name='date_closed',
              default_period='this_year'),
         dict(key='vendedor', name='Vendedor', filter_type='many2one', field_name='user_id', comodel='res.users',
              multiple=True, record_domain="[('share', '=', False)]"),
         dict(key='buscar', name='Cliente u oportunidad', filter_type='text', field_name='partner_id'),
     ],
     'widgets': [
-        dict(type='list', name='Proyectos ganados (más recientes)', width='6', model='crm.lead',
-             domain=d(OPP, "('won_status', '=', 'won')", NOT_EXCLUDED),
-             list_fields='date_closed, ' + LIST_COLUMNS, list_order='date_closed desc', limit=15),
-        dict(type='list', name='Proyectos perdidos (mayor monto)', width='6', model='crm.lead',
-             domain=d(OPP, "('active', '=', False)", "('won_status', '=', 'lost')"),
-             list_fields='date_closed, partner_id, name, lost_reason_id, expected_revenue',
-             list_order='expected_revenue desc', limit=15),
-        dict(type='list', name='Pipeline abierto: enviadas pendientes de respuesta', width='6', model='crm.lead',
-             domain=d(OPP, "('report_open_status', '=', 'enviada')", "('won_status', '=', 'pending')"),
-             map={'periodo': None}, list_fields='create_date, ' + LIST_COLUMNS + ', report_idle_days',
-             list_order='expected_revenue desc', limit=15),
-        dict(type='list', name='Proyectos en pausa', width='6', model='crm.lead',
-             domain=d(OPP, "('report_open_status', '=', 'pausa')", "('won_status', '=', 'pending')"),
-             map={'periodo': None}, list_fields='create_date, ' + LIST_COLUMNS,
-             list_order='expected_revenue desc', limit=15),
-        dict(type='list', name='Proyectos cancelados', width='6', model='crm.lead',
-             domain=d(OPP, "('stage_id.report_close_on_enter', '=', True)"),
-             list_fields='date_closed, ' + LIST_COLUMNS, list_order='date_closed desc', limit=15),
-        dict(type='list', name='Oportunidades lentas (más tiempo sin movimiento)', width='6', model='crm.lead',
+        # ================= 4. Proyectos ganados =================
+        dict(type='section', name='Proyectos ganados', since=V9, sequence=100,
+             subtitle='Por fecha de cierre · semanas = fecha de cierre − fecha de creación'),
+        dict(type='kpi', name='Ganados Sin Recompra', code='ganados_sr', width='3', model='crm.lead',
+             domain=d(*(WON_D + (SR,))), map={'periodo': 'date_closed'}, since=V9, sequence=102,
+             measures=[m('Ganados', 'ganados_sr')], value_format='integer', abbreviate=False,
+             secondary_code='venta_sr', subtitle='ticket {ticket_sr} · {semanas_sr} semanas promedio',
+             color='#EFF6FF'),
+        dict(type='kpi', name='Ganados Recompra', code='ganados_r', width='3', model='crm.lead',
+             domain=d(*(WON_D + (R,))), map={'periodo': 'date_closed'}, since=V9, sequence=103,
+             measures=[m('Ganados', 'ganados_r')], value_format='integer', abbreviate=False,
+             secondary_code='venta_r', subtitle='ticket {ticket_r} · {semanas_r} semanas promedio',
+             color='#EFF6FF'),
+        dict(type='kpi', name='Venta ganada', code='venta', width='3', model='crm.lead', domain=d(*WON_D),
+             map={'periodo': 'date_closed'}, since=V9, sequence=104,
+             measures=[m('Venta', 'venta', 'sum', REVENUE)], value_format='monetary',
+             subtitle='{ganados} proyectos · ticket promedio {ticket}', color='#EFF6FF'),
+        dict(type='kpi', name='Semanas creación→cierre', code='semanas', width='3', model='crm.lead',
+             domain=d(*WON_D), map={'periodo': 'date_closed'}, since=V9, sequence=105,
+             measures=[m('Semanas', 'semanas', 'avg', 'report_close_weeks')], value_format='number1',
+             abbreviate=False, subtitle='promedio · SR {semanas_sr} · R {semanas_r}', color='#F9FAFB'),
+        hidden_kpi('Venta Sin Recompra', 'venta_sr', d(*(WON_D + (SR,))), 'date_closed', 106, 'sum', REVENUE,
+                   'monetary'),
+        hidden_kpi('Venta Recompra', 'venta_r', d(*(WON_D + (R,))), 'date_closed', 107, 'sum', REVENUE, 'monetary'),
+        hidden_kpi('Ganados (todos)', 'ganados', d(*WON_D), 'date_closed', 108),
+        hidden_kpi('Semanas SR', 'semanas_sr', d(*(WON_D + (SR,))), 'date_closed', 109, 'avg', 'report_close_weeks',
+                   'number1'),
+        hidden_kpi('Semanas R', 'semanas_r', d(*(WON_D + (R,))), 'date_closed', 110, 'avg', 'report_close_weeks',
+                   'number1'),
+        hidden_kpi('Ticket SR', 'ticket_sr', None, None, 111, value_format='monetary',
+                   formula='div(venta_sr, ganados_sr)'),
+        hidden_kpi('Ticket R', 'ticket_r', None, None, 112, value_format='monetary', formula='div(venta_r, ganados_r)'),
+        hidden_kpi('Ticket', 'ticket', None, None, 113, value_format='monetary', formula='div(venta, ganados)'),
+        dict(type='list', name='Ganados Sin Recompra', width='6', model='crm.lead', domain=d(*(WON_D + (SR,))),
+             map={'periodo': 'date_closed'}, since=V9, sequence=120, height=420, limit=80,
+             list_fields='create_date:Creado, date_closed:Cierre, report_close_weeks:Sem, partner_id:Cliente, name:Proyecto, expected_revenue:Monto',
+             list_order='date_closed asc', list_show_number=True, list_show_total=True,
+             subtitle='Incluye Inadecuado y sin segmento.'),
+        dict(type='list', name='Ganados Recompra', width='6', model='crm.lead', domain=d(*(WON_D + (R,))),
+             map={'periodo': 'date_closed'}, since=V9, sequence=121, height=420, limit=80,
+             list_fields='create_date:Creado, date_closed:Cierre, report_close_weeks:Sem, partner_id:Cliente, name:Proyecto, expected_revenue:Monto',
+             list_order='date_closed asc', list_show_number=True, list_show_total=True),
+        # ================= 5. Proyectos perdidos =================
+        dict(type='section', name='Proyectos perdidos', since=V9, sequence=200,
+             subtitle='Qué estamos dejando ir · por fecha de cierre · razón de pérdida capturada en Odoo'),
+    ] + segment_kpis('perdidos', 'Perdidos', LOST_D, 'date_closed', 202, '#FEF2F2') + [
+        dict(type='chart', name='Razones de pérdida ({perdidos} proyectos · {perdidos_monto})', width='4',
+             model='crm.lead', domain=d(*LOST_D), groupby='lost_reason_id', chart_type='hbar',
+             sort_mode='value_desc', map={'periodo': 'date_closed'}, show_legend=False, show_values=True,
+             since=V9, sequence=220, height=380, measures=[m('Perdidos', 'perdidos', color='#DC4B4B')]),
+        dict(type='list', name='Perdidos por monto', width='8', model='crm.lead', domain=d(*LOST_D),
+             map={'periodo': 'date_closed'}, since=V9, sequence=221, height=380, limit=30,
+             list_fields='date_closed:Cierre, partner_id:Cliente, name:Proyecto, report_segment:SR/R, expected_revenue:Monto, lost_reason_id:Razón',
+             list_order='expected_revenue desc', list_show_number=True, list_show_total=True),
+        # ================= 6. Proyectos cancelados =================
+        dict(type='section', name='Proyectos cancelados', since=V9, sequence=300,
+             subtitle='Cotizados que el cliente canceló o no ejecutó · por fecha de creación del lead'),
+    ] + segment_kpis('cancelados', 'Cancelados', CANCEL_D, 'create_date', 302, '#F1F5F9') + [
+        dict(type='chart', name='Cancelados por mes de creación ({cancelados} proyectos · {cancelados_monto})',
+             width='4', model='crm.lead', domain=d(*CANCEL_D), groupby='create_date', interval='month',
+             chart_type='bar', map={'periodo': 'create_date'}, show_legend=False, show_values=True, since=V9,
+             sequence=320, height=380, measures=[m('Cancelados', 'cancelados', color='#94A3B8')]),
+        dict(type='list', name='Cancelados por monto', width='8', model='crm.lead', domain=d(*CANCEL_D),
+             map={'periodo': 'create_date'}, since=V9, sequence=321, height=380, limit=30,
+             list_fields='create_date:Creado, partner_id:Cliente, name:Proyecto, report_segment:SR/R, expected_revenue:Monto',
+             list_order='expected_revenue desc', list_show_number=True, list_show_total=True),
+        # ================= 7. Proyectos en pausa =================
+        dict(type='section', name='Proyectos en pausa', since=V9, sequence=400,
+             subtitle='Cotizaciones que el cliente pospuso · solo con monto · a hoy · días desde la creación '
+                      '(rojo: más de un año)'),
+    ] + segment_kpis('pausa', 'En pausa', PAUSE_D + (WITH_AMOUNT,), None, 402, '#FFFBEB') + [
+        dict(type='chart', name='En pausa por antigüedad ({pausa} proyectos · {pausa_monto})', width='4',
+             model='crm.lead', domain=d(*(PAUSE_D + (WITH_AMOUNT,))), range_field='create_date',
+             range_bounds='90,180,365', chart_type='bar', map={'periodo': None}, show_legend=False,
+             show_values=True, since=V9, sequence=420, height=380,
+             measures=[m('Proyectos', 'proyectos', color='#E0A526')]),
+        dict(type='list', name='En pausa por monto', width='8', model='crm.lead', domain=d(*(PAUSE_D + (WITH_AMOUNT,))),
+             map={'periodo': None}, since=V9, sequence=421, height=380, limit=30,
+             list_fields='create_date:Creado, report_age_days:Días, partner_id:Cliente, name:Proyecto, report_segment:SR/R, expected_revenue:Monto',
+             list_order='expected_revenue desc', list_highlight='report_age_days > 365', list_show_number=True,
+             list_show_total=True),
+        # ================= 8. Pipeline abierto =================
+        dict(type='section', name='Pipeline abierto', since=V9, sequence=500,
+             subtitle='Situación a hoy · antigüedad = días desde la creación del lead (rojo: más de 90 días)'),
+        dict(type='kpi', name='Enviadas (pendientes de respuesta)', code='env', width='3', model='crm.lead',
+             domain=d(*SENT_D), map={'periodo': None}, since=V9, sequence=502, measures=[m('Enviadas', 'env')],
+             value_format='integer', abbreviate=False, secondary_code='env_monto',
+             subtitle='SR {env_sr} ({env_sr_monto}) · R {env_r} ({env_r_monto})', color='#EFF6FF'),
+        hidden_kpi('Enviadas (monto)', 'env_monto', d(*SENT_D), None, 503, 'sum', REVENUE, 'monetary'),
+        hidden_kpi('Enviadas SR', 'env_sr', d(*(SENT_D + (SR,))), None, 504),
+        hidden_kpi('Enviadas SR (monto)', 'env_sr_monto', d(*(SENT_D + (SR,))), None, 505, 'sum', REVENUE, 'monetary'),
+        hidden_kpi('Enviadas R', 'env_r', d(*(SENT_D + (R,))), None, 506),
+        hidden_kpi('Enviadas R (monto)', 'env_r_monto', d(*(SENT_D + (R,))), None, 507, 'sum', REVENUE, 'monetary'),
+        dict(type='kpi', name='Por enviar (invitación / cotizando / revisión)', code='por_enviar', width='3',
+             model='crm.lead', domain=d(*TO_SEND_D), map={'periodo': None}, since=V9, sequence=508,
+             measures=[m('Por enviar', 'por_enviar')], value_format='integer', abbreviate=False,
+             subtitle='{por_enviar_monto} estimado', color='#F9FAFB'),
+        hidden_kpi('Por enviar (monto)', 'por_enviar_monto', d(*TO_SEND_D), None, 509, 'sum', REVENUE, 'monetary'),
+        dict(type='kpi', name='En pausa', code='pausa_todos', width='3', model='crm.lead', domain=d(*PAUSE_D),
+             map={'periodo': None}, since=V9, sequence=510, measures=[m('En pausa', 'pausa_todos')],
+             value_format='integer', abbreviate=False, secondary_code='pausa_todos_monto',
+             subtitle='proyectos pospuestos por el cliente', color='#F9FAFB'),
+        hidden_kpi('En pausa (monto)', 'pausa_todos_monto', d(*PAUSE_D), None, 511, 'sum', REVENUE, 'monetary'),
+        dict(type='kpi', name='Enviadas con más de 180 días', code='env_180', width='3', model='crm.lead',
+             domain=d(*(SENT_D + (OLDER_180,))), map={'periodo': None}, since=V9, sequence=512,
+             measures=[m('Enviadas > 180 días', 'env_180')], value_format='integer', abbreviate=False,
+             secondary_code='env_180_monto', subtitle='candidatas a depurar o reactivar', color='#FFF7ED'),
+        hidden_kpi('Enviadas > 180 días (monto)', 'env_180_monto', d(*(SENT_D + (OLDER_180,))), None, 513, 'sum',
+                   REVENUE, 'monetary'),
+        dict(type='chart', name='Antigüedad de cotizaciones enviadas (# y monto)', width='6', model='crm.lead',
+             domain=d(*SENT_D), range_field='create_date', range_bounds='30,60,90,180', chart_type='bar',
+             map={'periodo': None}, show_values=True, since=V9, sequence=520, height=340, measures=[
+                 m('Cotizaciones', 'cotizaciones', value_format='integer', color='#2F5BEA'),
+                 m('Monto', 'monto', 'sum', REVENUE, value_format='monetary', color='#F59E0B',
+                   series_type='line', right_axis=True),
+             ]),
+        dict(type='table', name='Enviadas por rango de días', width='6', model='crm.lead', domain=d(*SENT_D),
+             range_field='create_date', range_bounds='30,60,90,180', row_label='Rango', map={'periodo': None},
+             since=V9, sequence=521, height=340, measures=[
+                 m('#', 'cotizaciones', value_format='integer'),
+                 m('Monto', 'monto', 'sum', REVENUE, value_format='monetary'),
+                 m('% del monto', 'pct', formula='div(monto, env_monto)', value_format='percent'),
+             ]),
+        dict(type='list', name='Cotizaciones enviadas por monto', width='12', model='crm.lead', domain=d(*SENT_D),
+             map={'periodo': None}, since=V9, sequence=530, height=420, limit=30,
+             list_fields='create_date:Creado, report_age_days:Días, partner_id:Cliente, name:Proyecto, report_segment:SR/R, user_id:Vendedor, expected_revenue:Monto',
+             list_order='expected_revenue desc', list_highlight='report_age_days > 90', list_show_number=True,
+             list_show_total=True),
+        # ================= 9. Prospección Sin Recompra =================
+        dict(type='section', name='Prospección Sin Recompra', since=V9, sequence=600,
+             subtitle='Trabajo comercial previo a la cotización · por mes de creación y etapa del embudo'),
+        hidden_kpi('Prospección (leads)', 'prospeccion', d(*PROSPECTING_D), 'create_date', 601),
+        dict(type='chart', name='Prospección Sin Recompra: {prospeccion} leads', width='6', model='crm.lead',
+             domain=d(*PROSPECTING_D), groupby='create_date', interval='month', groupby2='stage_id',
+             chart_type='bar_stacked', map={'periodo': 'create_date'}, show_values=True, since=V9, sequence=610,
+             height=460, subtitle='por mes de creación', measures=[m('Leads', 'leads')]),
+        dict(type='list', name='Leads de los últimos 3 meses', width='6', model='crm.lead',
+             domain=d(*(PROSPECTING_D + (LAST_3_MONTHS,))), map={'periodo': None}, since=V9, sequence=611,
+             height=460, limit=100, list_group_field='stage_id', list_order='create_date desc',
+             list_fields='create_date:Creado, partner_id:Cliente, name:Proyecto, x_studio_cmo_se_gener_el_lead:Origen',
+             subtitle='Agrupados por etapa; el periodo no aplica (siempre los últimos 3 meses).'),
+        # ================= Seguimiento =================
+        dict(type='section', name='Seguimiento', since=V9, sequence=690,
+             subtitle='Oportunidades abiertas con más tiempo sin movimiento'),
+        dict(type='list', name='Oportunidades lentas (más tiempo sin movimiento)', width='12', model='crm.lead',
+             sequence=700,
              domain=d(OPP, "('won_status', '=', 'pending')",
                       "('report_stage_group', 'in', ['prospeccion', 'por_enviar', 'cotizado'])",
                       "('stage_id.report_close_on_enter', '=', False)"),
@@ -227,6 +413,13 @@ COMMERCIAL_LISTS = {
              list_order='report_last_move_date asc', limit=15),
     ],
 }
+
+# Listados de la versión 19.0.6.0.0 que reemplaza la 19.0.9.0.0
+OLD_LIST_NAMES = [
+    'Proyectos ganados (más recientes)', 'Proyectos perdidos (mayor monto)',
+    'Pipeline abierto: enviadas pendientes de respuesta', 'Proyectos en pausa', 'Proyectos cancelados',
+]
+
 
 PARTIDA = 'business.report.week.partida'
 PROJECT = 'business.report.week.project'
@@ -361,7 +554,7 @@ def _create_dashboard(env, spec):
     return dashboard
 
 
-def _ensure_widgets(env, specs=None, since=None):
+def _ensure_widgets(env, specs=None, since=None, xmlids=None):
     """Agrega a los tableros que ya existen los elementos nuevos de fábrica.
 
     Solo los elementos marcados con 'since' (= since, si se indica) y que no
@@ -370,6 +563,8 @@ def _ensure_widgets(env, specs=None, since=None):
     """
     added = []
     for spec in specs or DEFAULT_DASHBOARDS:
+        if xmlids and spec['xmlid'] not in xmlids:
+            continue
         dashboard = env.ref('%s.%s' % (MODULE, spec['xmlid']), raise_if_not_found=False)
         if not dashboard:
             continue
@@ -410,7 +605,18 @@ def _create_widget(env, dashboard, filters, item, sequence):
         'list_order': item.get('list_order'), 'height': item.get('height', 320),
         'table_transpose': item.get('table_transpose', False),
         'range_bounds': item.get('range_bounds', '30,60,90,180'),
+        # 19.0.9.0.0
+        'secondary_code': item.get('secondary_code'), 'show_values': item.get('show_values', False),
+        'list_show_number': item.get('list_show_number', False),
+        'list_show_total': item.get('list_show_total', False),
+        'list_highlight': item.get('list_highlight'),
     }
+    if model and item.get('list_fields'):
+        # Los campos que no existen en esta base (p. ej. de Studio) se omiten
+        parts = [part.strip() for part in item['list_fields'].split(',')]
+        vals['list_fields'] = ', '.join(part for part in parts if part.partition(':')[0].strip() in env[model]._fields)
+    if model and item.get('list_group_field') in env[model]._fields:
+        vals['list_group_field'] = item['list_group_field']
     if model:
         vals['model_id'] = env['ir.model']._get_id(model)
         if item.get('groupby'):
@@ -436,3 +642,23 @@ def _create_widget(env, dashboard, filters, item, sequence):
     vals['filter_map_ids'] = [(0, 0, {'filter_id': filters[key].id, 'field_path': path or False})
                               for key, path in item.get('map', {}).items()]
     return env['business.dashboard.widget'].create(vals)
+
+
+def _upgrade_commercial_lists(env):
+    """19.0.9.0.0: rearma "Listados comerciales" como el Reporte Comercial.
+
+    Quita los 5 listados de fábrica anteriores (se reemplazan por secciones con
+    indicadores, gráfica y listado), agrega los elementos nuevos y deja
+    "Oportunidades lentas" al final. Lo que el usuario haya agregado se queda.
+    """
+    dashboard = env.ref('%s.%s' % (MODULE, COMMERCIAL_LISTS['xmlid']), raise_if_not_found=False)
+    if not dashboard:
+        return []
+    old = dashboard.widget_ids.filtered(lambda w: w.widget_type == 'list' and w.name in OLD_LIST_NAMES)
+    old.unlink()
+    period = dashboard.filter_ids.filtered(lambda f: f.name == 'Periodo (cierre)')
+    period.write({'name': 'Periodo'})
+    dashboard.description = COMMERCIAL_LISTS['description']
+    slow = dashboard.widget_ids.filtered(lambda w: w.name.startswith('Oportunidades lentas'))
+    slow.write({'sequence': 700})
+    return _ensure_widgets(env, since=V9, xmlids=[COMMERCIAL_LISTS['xmlid']])
