@@ -20,6 +20,7 @@ la versión del módulo y se prueba en la base de pruebas antes de seguir.
 | 7+ | 19.0.9.0.0 | "Listados comerciales" como el Reporte Comercial: ganados SR/R (semanas creación→cierre), perdidos, cancelados, en pausa, pipeline abierto y prospección, cada uno con indicadores, gráfica y listado | Mauricio |
 | 7+ | 19.0.10.0.0 | "Seguimiento comercial" como el Reporte Comercial: resumen ejecutivo con SR/R, histórico de invitaciones con indicadores, embudo Totales / SR / R, venta por trimestre vs meta acumulada, ingenierías y origen de leads | Mauricio y Dirección |
 | 7+ | 19.0.11.0.0 | Comparativo en los tableros, exportar a PDF y Excel, y todos los menús dentro de la app Tableros DACSA | Dirección, Mauricio |
+| 7+ | 19.0.12.0.0 | Reporte semanal Dirección: gráficas que faltaban según las sesiones del 28/10 y 13/11 y el documento base (desviación por cuenta analítica, costos y margen NeoData por proyecto, balance financiero, histórico, margen semanal y diferencia de costos por partida) | César, Ricardo |
 
 ## Etapa 1 · Qué hace
 
@@ -354,3 +355,35 @@ Nuevo en las medidas: **Acumulada** (suma corrida por grupo) y **Sin periodo** (
 2. Tablero de Dirección › Comparar con › Otra semana… › elegir una semana cerrada.
 3. PDF y Excel con y sin comparativo.
 4. Revisar que CRM › Reportes y Proyecto › Reportes ya no tengan los menús del módulo y que estén en Tableros DACSA.
+
+## 19.0.12.0.0 · Qué hace
+
+Completa el tablero **Reporte semanal Dirección** con lo pedido en las sesiones del 28/10 y 13/11 y en el documento base (EST-DAC-001), en tres secciones:
+
+1. **Resumen de Dirección** (Σ proyectos en análisis):
+   - Indicadores (sin cambio).
+   - *Balance de costos por partida* (gráfica y tabla): Σ planeado vs Σ real por posición.
+   - *Indicador de costos*: desviación acumulada (planeado − real) por semana, barras en verde (optimización) o rojo (sobrecosto). *Indicador de venta semanal*: Σ avance NeoData por semana. Reemplazan la gráfica combinada anterior.
+   - *Margen operativo al momento – proyectos* (tabla).
+2. **Por proyecto (cuenta analítica)**: un grupo por proyecto; con el filtro Proyecto se ve uno solo.
+   - *Desviación por cuenta analítica* (gráfica verde/rojo y tabla con planeado, real, desviación y %).
+   - *Costos por proyecto: planeado vs real* y *Costo real por proyecto y partida* (apilada: EyH, indirectos, MO, materiales y subcontratistas).
+   - *Margen operativo NeoData por proyecto* (venta reconocida NeoData, costo real y margen) y *por semana* (histórico, verde/rojo).
+   - *Balance financiero por proyecto*: valor contrato, venta NeoData, estimado autorizado (Ventas sin anticipos), restante por estimar, facturado, OC y estimación en revisión.
+   - *Costo planeado vs real por semana* (histórico).
+3. **Semana: margen semanal y diferencia de costos** (lámina "Costos 2"):
+   - *Margen semanal por proyecto* (tabla 1): venta NeoData actual y anterior, avance semanal, costo de la semana y diferencia.
+   - *Margen semanal por semana* (histórico).
+   - *Diferencia de costos semanal por partida* (gráfica y tabla 2): planeado y real de la semana anterior y actual, Δ planeado, Δ real y diferencia (Δ planeado − Δ real).
+
+Motor: las medidas de gráficas con color "Verde si ≥ 0, rojo si < 0" pintan cada barra según su signo (también en PDF y Excel).
+
+Las gráficas históricas muestran todas las semanas (no usan el filtro Semana) y no llevan comparativo.
+
+La migración quita la gráfica combinada "Indicadores de costos y venta por semana", acomoda orden y ancho de los elementos de fábrica y agrega los nuevos. Lo que el usuario haya agregado se queda.
+
+## 19.0.12.0.0 · Cómo probar
+
+1. Tableros DACSA › Reporte semanal Dirección › Tablero: revisar las tres secciones con la semana vigente.
+2. Filtrar un proyecto (p. ej. 251106 Patio de maniobras) y comparar con el PPT: costos por partida, desviación, margen NeoData, margen semanal y diferencia de costos.
+3. Comparar con otra semana y exportar PDF y Excel.

@@ -156,6 +156,9 @@ function fade(color, alpha = "66") {
  * Con comparativo, cada serie lleva su gemela del otro periodo: más clara y,
  * en líneas, punteada; en barras apiladas va en su propia pila.
  */
+const SIGN_GREEN = "#16A34A";
+const SIGN_RED = "#DC2626";
+
 export function buildChartConfig(w, { currency, compareLabel = "", textColor = "#374151",
     gridColor = "rgba(128, 128, 128, 0.2)", onClick = null, animation = true } = {}) {
     const pie = ["pie", "doughnut"].includes(w.chart_type);
@@ -175,7 +178,14 @@ export function buildChartConfig(w, { currency, compareLabel = "", textColor = "
     const toDataset = (d, isCompare) => {
         // Cada medida puede dibujarse como barra o como línea (p. ej. la meta mensual)
         const seriesType = pie ? type : d.series_type || type;
-        const color = isCompare ? fade(d.color) : d.color;
+        let color = isCompare ? fade(d.color) : d.color;
+        // Medida con color por signo: cada barra en verde (≥ 0) o rojo (< 0)
+        if (!pie && seriesType !== "line" && d.color_mode === "sign") {
+            color = d.data.map((v) => {
+                const base = Number(v || 0) < 0 ? SIGN_RED : SIGN_GREEN;
+                return isCompare ? fade(base) : base;
+            });
+        }
         let stack;
         if (stacked) {
             stack = seriesType === "line" ? `line-${d.measure_id}${isCompare ? "-c" : ""}` : (isCompare ? "comp" : "actual");
@@ -185,7 +195,7 @@ export function buildChartConfig(w, { currency, compareLabel = "", textColor = "
             label: isCompare ? `${d.label} · ${compareLabel}` : d.label,
             data: d.data,
             backgroundColor: pie ? palette.concat(["#93C5FD", "#FCA5A5", "#FCD34D", "#6EE7B7"]) : color,
-            borderColor: pie ? "#fff" : (isCompare ? d.color : color),
+            borderColor: pie ? "#fff" : (isCompare && !Array.isArray(color) ? d.color : color),
             borderWidth: seriesType === "line" ? 2 : 1,
             borderDash: isCompare && seriesType === "line" ? [5, 4] : undefined,
             pointRadius: seriesType === "line" ? 3 : undefined,

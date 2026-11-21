@@ -51,7 +51,7 @@ acumulada, ingenierías y origen de leads Sin Recompra.
 año anterior, fechas o la semana que se elija), exportar a PDF y a Excel, y
 todos los menús del módulo dentro de la app "Tableros DACSA".
 """,
-    'version': '19.0.11.0.0',
+    'version': '19.0.12.0.0',
     'category': 'Sales/CRM',
     'author': 'Slyn',
     'license': 'LGPL-3',

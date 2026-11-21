@@ -621,6 +621,7 @@ OLD_LIST_NAMES = [
 
 PARTIDA = 'business.report.week.partida'
 PROJECT = 'business.report.week.project'
+V12 = '19.0.12.0.0'
 WEEK_REPORT = {
     'xmlid': 'dashboard_week_report',
     'name': 'Reporte semanal Dirección',
@@ -628,7 +629,9 @@ WEEK_REPORT = {
     'sequence': 30,
     'groups': ['project.group_project_user'],
     'description': 'Proyectos en curso. Por omisión muestra la semana vigente (la última cerrada); elige otra '
-                   'semana en el filtro. Rojo en el margen = menor a la alerta de la semana.',
+                   'semana en el filtro. Elige uno o varios proyectos para ver solo esos (gráficas por '
+                   'proyecto, costos por partida y margen semanal). Rojo en el margen = menor a la alerta '
+                   'de la semana; verde / rojo en desviaciones = optimización / sobrecosto.',
     'filters': [
         dict(key='semana', name='Semana', filter_type='many2one', field_name='week_id',
              comodel='business.report.week', multiple=False, required=True,
@@ -637,62 +640,49 @@ WEEK_REPORT = {
              comodel='account.analytic.account', multiple=True),
     ],
     'widgets': [
+        dict(type='section', name='Resumen de Dirección', sequence=5, since=V12,
+             subtitle='Σ proyectos en análisis de la semana elegida'),
         # ---------------- Indicadores ----------------
-        dict(type='kpi', name='Costo planeado', code='planeado', width='3', model=PARTIDA,
+        dict(type='kpi', sequence=10, name='Costo planeado', code='planeado', width='3', model=PARTIDA,
              measures=[m('Planeado', 'planeado', 'sum', 'planned_amount')], value_format='monetary',
              subtitle='NeoData, Σ partidas', color='#EFF6FF'),
-        dict(type='kpi', name='Costo real', code='real', width='3', model=PARTIDA,
+        dict(type='kpi', sequence=20, name='Costo real', code='real', width='3', model=PARTIDA,
              measures=[m('Real', 'real', 'sum', 'real_amount')], value_format='monetary',
              subtitle='Odoo, a la fecha de corte', color='#F9FAFB'),
-        dict(type='kpi', name='Desviación acumulada', code='desviacion', width='3', formula='planeado - real',
+        dict(type='kpi', sequence=30, name='Desviación acumulada', code='desviacion', width='3', formula='planeado - real',
              value_format='monetary', color_mode='sign', subtitle='planeado − real', color='#F0FDF4'),
-        dict(type='kpi', name='% de optimización', code='optimizacion', width='3',
+        dict(type='kpi', sequence=40, name='% de optimización', code='optimizacion', width='3',
              formula='div(desviacion, planeado)', value_format='percent', color_mode='sign',
              subtitle='desviación / planeado', color='#F0FDF4'),
-        dict(type='kpi', name='Δ planeado', code='delta_planeado', hidden=True, model=PARTIDA,
+        dict(type='kpi', sequence=50, name='Δ planeado', code='delta_planeado', hidden=True, model=PARTIDA,
              measures=[m('Δ planeado', 'delta_planeado', 'sum', 'planned_delta')]),
-        dict(type='kpi', name='Δ real', code='delta_real', hidden=True, model=PARTIDA,
+        dict(type='kpi', sequence=60, name='Δ real', code='delta_real', hidden=True, model=PARTIDA,
              measures=[m('Δ real', 'delta_real', 'sum', 'real_delta')]),
-        dict(type='kpi', name='Desviación vs semana anterior', code='delta_desviacion', width='3',
+        dict(type='kpi', sequence=70, name='Desviación vs semana anterior', code='delta_desviacion', width='3',
              formula='delta_planeado - delta_real', value_format='monetary', color_mode='sign',
              subtitle='cambio de la desviación', color='#F0FDF4'),
-        dict(type='kpi', name='Venta semanal', code='venta_semanal', width='3', model=PROJECT,
+        dict(type='kpi', sequence=80, name='Venta semanal', code='venta_semanal', width='3', model=PROJECT,
              measures=[m('Venta semanal', 'venta_semanal', 'sum', 'neodata_advance')], value_format='monetary',
              subtitle='Σ avance NeoData', color='#FFF7ED'),
-        dict(type='kpi', name='Venta real', code='venta_real', hidden=True, model=PROJECT,
+        dict(type='kpi', sequence=90, name='Venta real', code='venta_real', hidden=True, model=PROJECT,
              measures=[m('Venta real', 'venta_real', 'sum', 'estimate_amount')]),
-        dict(type='kpi', name='Costo real proyectos', code='costo_proyectos', hidden=True, model=PROJECT,
+        dict(type='kpi', sequence=100, name='Costo real proyectos', code='costo_proyectos', hidden=True, model=PROJECT,
              measures=[m('Costo', 'costo_proyectos', 'sum', 'real_total')]),
-        dict(type='kpi', name='Alerta de margen', code='alerta', hidden=True, model='business.report.week',
+        dict(type='kpi', sequence=110, name='Alerta de margen', code='alerta', hidden=True, model='business.report.week',
              map={'semana': 'id', 'proyecto': None},
              measures=[m('Alerta', 'alerta', 'max', 'margin_alert_pct')]),
-        dict(type='kpi', name='Margen operativo', code='margen', width='3', formula='venta_real - costo_proyectos',
+        dict(type='kpi', sequence=120, name='Margen operativo', code='margen', width='3', formula='venta_real - costo_proyectos',
              value_format='monetary', color_mode='sign', subtitle='estimado autorizado − costo real',
              color='#F0FDF4'),
-        dict(type='kpi', name='% margen operativo', code='margen_pct', width='3',
+        dict(type='kpi', sequence=130, name='% margen operativo', code='margen_pct', width='3',
              formula='div(margen, venta_real)', value_format='percent', color_mode='threshold', threshold='alerta',
              subtitle='rojo si es menor a la alerta de la semana', color='#F0FDF4'),
-        # ---------------- Gráficas ----------------
-        dict(type='chart', name='Balance de costos por partida', width='6', model=PARTIDA, groupby='partida',
-             chart_type='bar', measures=[
+        # ---------------- Resumen: gráficas y tablas ----------------
+        dict(type='chart', name='Balance de costos por partida', sequence=140, width='4', model=PARTIDA,
+             groupby='partida', chart_type='bar', subtitle='Σ planeado vs Σ real por posición', measures=[
                  m('Planeado (NeoData)', 'planeado', 'sum', 'planned_amount', color='#2F5BEA', value_format='monetary'),
                  m('Real (Odoo)', 'real', 'sum', 'real_amount', color='#E8556F', value_format='monetary')]),
-        dict(type='chart', name='Indicadores de costos y venta por semana', width='6', model=PROJECT,
-             groupby='week_date', interval='day', chart_type='line', map={'semana': None},
-             subtitle='todas las semanas', measures=[
-                 m('Balance de costos (planeado − real)', 'balance', 'sum', 'deviation', color='#2F5BEA',
-                   value_format='monetary'),
-                 m('Venta semanal (avance NeoData)', 'venta', 'sum', 'neodata_advance', color='#F59E0B')]),
-        # ---------------- Tablas ----------------
-        dict(type='table', name='Balance de costos por partida (Σ proyectos en análisis)', width='12',
-             model=PARTIDA, groupby='partida', row_label='Partida', measures=[
-                 m('Planeado', 'planeado', 'sum', 'planned_amount', value_format='monetary'),
-                 m('Real', 'real', 'sum', 'real_amount', value_format='monetary'),
-                 m('Diferencia', 'diferencia', formula='planeado - real', value_format='monetary', color_mode='sign'),
-                 m('%', 'pct', formula='div(diferencia, planeado)', value_format='percent', color_mode='sign'),
-                 m('Δ planeado vs sem. ant.', 'delta_planeado', 'sum', 'planned_delta', value_format='monetary'),
-                 m('Δ real vs sem. ant.', 'delta_real', 'sum', 'real_delta', value_format='monetary')]),
-        dict(type='table', name='Margen operativo al momento – proyectos', width='12', model=PROJECT,
+        dict(type='table', name='Margen operativo al momento – proyectos', sequence=170, width='12', model=PROJECT,
              groupby='analytic_account_id', row_label='Proyecto', total_first=True,
              drilldown_view='custom_business_reports.business_report_week_project_view_form_detail',
              measures=[
@@ -701,13 +691,135 @@ WEEK_REPORT = {
                  m('Margen operativo', 'margen', formula='venta - costo', value_format='monetary'),
                  m('% margen', 'pct', formula='div(margen, venta)', value_format='percent',
                    color_mode='threshold', threshold='alerta')]),
-        dict(type='list', name='Proyectos en análisis', width='12', model=PROJECT, limit=30,
+        # Láminas "Indicadores costos y venta": desviación acumulada (verde / rojo) y venta semanal
+        dict(type='chart', name='Indicador de costos: desviación acumulada por semana', sequence=145, width='4',
+             model=PROJECT, groupby='week_date', interval='day', chart_type='bar', map={'semana': None},
+             since=V12, subtitle='planeado − real de los proyectos, todas las semanas · verde = optimización',
+             show_legend=False, show_values=True, measures=[
+                 m('Desviación acumulada', 'desviacion', 'sum', 'deviation', value_format='monetary',
+                   color_mode='sign')]),
+        dict(type='chart', name='Indicador de venta semanal', sequence=150, width='4', model=PROJECT,
+             groupby='week_date', interval='day', chart_type='bar', map={'semana': None}, since=V12,
+             subtitle='Σ avance semanal NeoData, todas las semanas', show_legend=False, show_values=True,
+             measures=[m('Venta semanal (avance NeoData)', 'venta', 'sum', 'neodata_advance', color='#F59E0B',
+                         value_format='monetary')]),
+        dict(type='table', name='Balance de costos por partida (Σ proyectos en análisis)', sequence=160, width='12',
+             model=PARTIDA, groupby='partida', row_label='Partida', measures=[
+                 m('Planeado', 'planeado', 'sum', 'planned_amount', value_format='monetary'),
+                 m('Real', 'real', 'sum', 'real_amount', value_format='monetary'),
+                 m('Diferencia', 'diferencia', formula='planeado - real', value_format='monetary', color_mode='sign'),
+                 m('%', 'pct', formula='div(diferencia, planeado)', value_format='percent', color_mode='sign'),
+                 m('Δ planeado vs sem. ant.', 'delta_planeado', 'sum', 'planned_delta', value_format='monetary'),
+                 m('Δ real vs sem. ant.', 'delta_real', 'sum', 'real_delta', value_format='monetary')]),
+
+        # ---------------- Por proyecto (lámina "Costos" y "Balance financiero") ----------------
+        dict(type='section', name='Por proyecto (cuenta analítica)', sequence=200, since=V12,
+             subtitle='Un grupo por proyecto; filtra un proyecto para ver solo el suyo'),
+        dict(type='chart', name='Desviación por cuenta analítica', sequence=210, width='6', model=PROJECT,
+             groupby='analytic_account_id', chart_type='bar', since=V12, sort_mode='value_desc',
+             subtitle='costo planeado − costo real · verde = optimización, rojo = sobrecosto',
+             show_legend=False, show_values=True, measures=[
+                 m('Desviación', 'desviacion', 'sum', 'deviation', value_format='monetary', color_mode='sign')]),
+        dict(type='table', name='Desviación por cuenta analítica (tabla)', sequence=215, width='12', model=PROJECT,
+             groupby='analytic_account_id', row_label='Proyecto', total_first=True, since=V12,
+             drilldown_view='custom_business_reports.business_report_week_project_view_form_detail',
+             measures=[
+                 m('Planeado', 'planeado', 'sum', 'planned_total', value_format='monetary'),
+                 m('Real', 'real', 'sum', 'real_total', value_format='monetary'),
+                 m('Desviación', 'desviacion', formula='planeado - real', value_format='monetary', color_mode='sign'),
+                 m('%', 'pct', formula='div(desviacion, planeado)', value_format='percent', color_mode='sign')]),
+        dict(type='chart', name='Costos por proyecto: planeado vs real', sequence=212, width='6', model=PROJECT,
+             groupby='analytic_account_id', chart_type='bar', since=V12,
+             subtitle='Σ partidas de cada proyecto', measures=[
+                 m('Planeado (NeoData)', 'planeado', 'sum', 'planned_total', color='#2F5BEA', value_format='monetary'),
+                 m('Real (Odoo)', 'real', 'sum', 'real_total', color='#E8556F', value_format='monetary')]),
+        dict(type='chart', name='Costo real por proyecto y partida', sequence=225, width='6', model=PARTIDA,
+             groupby='analytic_account_id', groupby2='partida', chart_type='bar_stacked', since=V12,
+             subtitle='EyH, indirectos, mano de obra, materiales y subcontratistas', measures=[
+                 m('Real (Odoo)', 'real', 'sum', 'real_amount', value_format='monetary')]),
+        dict(type='chart', name='Margen operativo NeoData por proyecto', sequence=230, width='6', model=PROJECT,
+             groupby='analytic_account_id', chart_type='bar', since=V12,
+             subtitle='venta reconocida NeoData − costo real', measures=[
+                 m('Venta reconocida NeoData', 'venta', 'sum', 'neodata_sale', color='#E07A1F',
+                   value_format='monetary'),
+                 m('Costo real', 'costo', 'sum', 'real_total', color='#E8556F', value_format='monetary'),
+                 m('Margen NeoData', 'margen', 'sum', 'neodata_margin', color='#93C5FD', value_format='monetary')]),
+        dict(type='chart', name='Margen operativo NeoData por semana', sequence=245, width='6', model=PROJECT,
+             groupby='week_date', interval='day', chart_type='bar', map={'semana': None}, since=V12,
+             subtitle='histórico de los proyectos elegidos (o de todos)', show_legend=False, show_values=True,
+             measures=[m('Margen NeoData', 'margen', 'sum', 'neodata_margin', value_format='monetary',
+                         color_mode='sign')]),
+        dict(type='chart', name='Balance financiero por proyecto', sequence=240, width='12', model=PROJECT,
+             groupby='analytic_account_id', chart_type='hbar', since=V12,
+             subtitle='estimado autorizado = Ventas sin anticipos · restante = contrato − estimado autorizado',
+             height=360, measures=[
+                 m('Valor contrato', 'contrato', 'sum', 'contract_amount', color='#15803D', value_format='monetary'),
+                 m('Venta NeoData', 'neodata', 'sum', 'neodata_sale', color='#E07A1F', value_format='monetary'),
+                 m('Estimado autorizado', 'estimado', 'sum', 'estimate_amount', color='#2F5BEA',
+                   value_format='monetary'),
+                 m('Restante por estimar', 'restante', 'sum', 'remaining_estimate', color='#EAB308',
+                   value_format='monetary'),
+                 m('Facturado', 'facturado', 'sum', 'invoiced_amount', color='#A8A29E', value_format='monetary'),
+                 m('OC en revisión', 'oc', 'sum', 'oc_review', color='#9CA3AF', value_format='monetary'),
+                 m('Estimación en revisión', 'est_rev', 'sum', 'estimate_review', color='#D1D5DB',
+                   value_format='monetary')]),
+        dict(type='chart', name='Costo planeado vs real por semana', sequence=250, width='6', model=PROJECT,
+             groupby='week_date', interval='day', chart_type='line', map={'semana': None}, since=V12,
+             subtitle='histórico de los proyectos elegidos (o de todos)', measures=[
+                 m('Planeado (NeoData)', 'planeado', 'sum', 'planned_total', color='#2F5BEA', value_format='monetary'),
+                 m('Real (Odoo)', 'real', 'sum', 'real_total', color='#E8556F', value_format='monetary')]),
+
+        # ---------------- Semana (lámina "Costos 2") ----------------
+        dict(type='section', name='Semana: margen semanal y diferencia de costos', sequence=300, since=V12,
+             subtitle='Avance NeoData vs costo de la semana; Δ de cada partida vs la semana anterior'),
+        dict(type='table', name='Margen semanal por proyecto', sequence=310, width='12', model=PROJECT,
+             groupby='analytic_account_id', row_label='Proyecto', total_first=True, since=V12,
+             drilldown_view='custom_business_reports.business_report_week_project_view_form_detail',
+             measures=[
+                 m('Venta NeoData sem. actual', 'venta', 'sum', 'neodata_sale', value_format='monetary'),
+                 m('Venta NeoData sem. anterior', 'venta_ant', 'sum', 'neodata_sale_prev', value_format='monetary'),
+                 m('Avance semanal NeoData', 'avance', 'sum', 'neodata_advance', value_format='monetary'),
+                 m('Costo de la semana', 'costo', 'sum', 'week_cost', value_format='monetary'),
+                 m('Diferencia', 'diferencia', 'sum', 'week_difference', value_format='monetary',
+                   color_mode='sign')]),
+        dict(type='chart', name='Margen semanal por semana', sequence=320, width='6', model=PROJECT,
+             groupby='week_date', interval='day', chart_type='bar', map={'semana': None}, since=V12,
+             subtitle='avance NeoData vs costo de la semana, todas las semanas', measures=[
+                 m('Avance semanal NeoData', 'avance', 'sum', 'neodata_advance', color='#F59E0B',
+                   value_format='monetary'),
+                 m('Costo de la semana', 'costo', 'sum', 'week_cost', color='#E8556F', value_format='monetary'),
+                 m('Diferencia', 'diferencia', 'sum', 'week_difference', color='#10B981', value_format='monetary',
+                   series_type='line')]),
+        dict(type='chart', name='Diferencia de costos semanal por partida', sequence=330, width='6', model=PARTIDA,
+             groupby='partida', chart_type='bar', since=V12,
+             subtitle='Δ planeado y Δ real vs la semana anterior · diferencia = Δ planeado − Δ real', measures=[
+                 m('Δ planeado', 'delta_planeado', 'sum', 'planned_delta', color='#2F5BEA', value_format='monetary'),
+                 m('Δ real', 'delta_real', 'sum', 'real_delta', color='#93C5FD', value_format='monetary'),
+                 m('Diferencia', 'diferencia', 'sum', 'week_difference', value_format='monetary',
+                   color_mode='sign')]),
+        dict(type='table', name='Diferencia de costos semanal por partida (tabla)', sequence=335, width='12',
+             model=PARTIDA, groupby='partida', row_label='Partida', since=V12, measures=[
+                 m('Planeado sem. anterior', 'planeado_ant', 'sum', 'planned_prev', value_format='monetary'),
+                 m('Planeado sem. actual', 'planeado', 'sum', 'planned_amount', value_format='monetary'),
+                 m('Δ planeado', 'delta_planeado', 'sum', 'planned_delta', value_format='monetary'),
+                 m('Real sem. anterior', 'real_ant', 'sum', 'real_prev', value_format='monetary'),
+                 m('Real sem. actual', 'real', 'sum', 'real_amount', value_format='monetary'),
+                 m('Δ real', 'delta_real', 'sum', 'real_delta', value_format='monetary'),
+                 m('Diferencia', 'diferencia', formula='delta_planeado - delta_real', value_format='monetary',
+                   color_mode='sign')]),
+
+        # ---------------- Detalle ----------------
+        dict(type='list', name='Proyectos en análisis', sequence=400, width='12', model=PROJECT, limit=30,
              drilldown_view='custom_business_reports.business_report_week_project_view_form_detail',
              list_fields='analytic_account_id, contract_amount, estimate_amount, invoiced_amount, neodata_sale, '
                          'planned_total, real_total, deviation, operating_margin',
              list_order='sequence, id'),
     ],
 }
+
+# 19.0.12.0.0: el combinado "Indicadores de costos y venta por semana" se separa
+# en las dos gráficas de la lámina (indicador de costos e indicador de venta).
+OLD_WEEK_NAMES = ['Indicadores de costos y venta por semana']
 
 DEFAULT_DASHBOARDS = [COMMERCIAL, COMMERCIAL_LISTS, WEEK_REPORT]
 MODULE = 'custom_business_reports'
@@ -914,3 +1026,32 @@ def _fix_commercial_v10_1(env):
     origin.write({'domain': ORIGIN_DOMAIN})
     dashboard.widget_ids.measure_ids.filtered(
         lambda m: m.code == 'acumulado' and m.color == OLD_CUMULATIVE_COLOR).write({'color': CUMULATIVE_COLOR})
+
+
+def _upgrade_week_report_v12(env):
+    """19.0.12.0.0: gráficas del Reporte semanal Dirección que faltaban según las
+    sesiones del 28/10 y 13/11 y el documento base (desviación por cuenta
+    analítica, costos y margen NeoData por proyecto, balance financiero,
+    histórico semanal, margen semanal y diferencia de costos por partida).
+
+    * Quita el combinado "Indicadores de costos y venta por semana" (se separa
+      en indicador de costos e indicador de venta, como la lámina).
+    * Acomoda secuencia y ancho de los elementos de fábrica que ya existen.
+    * Agrega los elementos nuevos (since=V12). Lo que el usuario agregó se queda.
+    """
+    dashboard = env.ref('%s.%s' % (MODULE, WEEK_REPORT['xmlid']), raise_if_not_found=False)
+    if not dashboard:
+        return []
+    dashboard.widget_ids.filtered(lambda w: w.name in OLD_WEEK_NAMES).unlink()
+    dashboard.description = WEEK_REPORT['description']
+    for item in WEEK_REPORT['widgets']:
+        if item.get('since') == V12:
+            continue
+        widget = dashboard.widget_ids.filtered(lambda w, item=item: w.name == item['name']
+                                               and w.widget_type == item['type'])[:1]
+        if widget:
+            vals = {'sequence': item['sequence']}
+            if not item.get('hidden'):
+                vals['width'] = item.get('width', '12')
+            widget.write(vals)
+    return _ensure_widgets(env, since=V12, xmlids=[WEEK_REPORT['xmlid']])

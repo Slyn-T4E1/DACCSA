@@ -1099,7 +1099,9 @@ class BusinessDashboardWidget(models.Model):
                              'color': measure.color or palette[i % len(palette)],
                              # Gráficas combinadas: barra o línea y eje derecho por medida
                              'series_type': measure.series_type or False, 'right_axis': measure.right_axis,
-                             'format': measure.value_format or 'number'})
+                             'format': measure.value_format or 'number',
+                             # 19.0.12: barras en verde (≥ 0) o rojo (< 0), p. ej. desviaciones
+                             'color_mode': measure.color_mode or 'none'})
         right = next((d for d in datasets if d['right_axis']), None)
         return {'chart_type': self.chart_type, 'labels': [groups[k][0] for k in keys], 'keys': keys,
                 'datasets': datasets, 'legend': self.show_legend, 'show_values': self.show_values,

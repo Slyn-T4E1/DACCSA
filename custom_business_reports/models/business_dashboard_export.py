@@ -231,7 +231,11 @@ class BusinessDashboard(models.Model):
         for col, dataset in enumerate(datasets, start=1):
             series = {'name': [sheet.name, start, col], 'categories': [sheet.name, start + 1, 0, last, 0],
                       'values': [sheet.name, start + 1, col, last, col]}
-            if dataset.get('color'):
+            if dataset.get('color_mode') == 'sign' and kind[0] != 'line':
+                # Verde o rojo por barra, como en el tablero
+                series['points'] = [{'fill': {'color': '#DC2626' if (v or 0) < 0 else '#16A34A'}}
+                                    for v in dataset['data']]
+            elif dataset.get('color'):
                 series['fill' if kind[0] != 'line' else 'line'] = {'color': dataset['color']}
             chart.add_series(series)
         chart.set_title({'name': widget['title']})
